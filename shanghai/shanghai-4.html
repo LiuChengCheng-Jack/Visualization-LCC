@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8">
+    <title>FDEB Shanghai Example</title>
+
+    <script type="text/javascript" src="js/jquery.js"></script>
+    <script src="js/d3.v3.js" charset="utf-8"></script>
+    <script type="text/javascript" src="js/leaflet.js"></script>
+    <script type="text/javascript" src="d3-ForceEdgeBundling.js"></script>
+    <link rel="stylesheet" type="text/css" href="css/leaflet.css">
+    <style type="text/css">
+        #map{
+            height:800px;
+            width: 1200px;
+        }
+    </style>
+</head>
+
+<body>
+    <div id="map">
+    </div>
+    <script>
+        $(function () {
+                      var baseLayer = L.tileLayer('https://api.mapbox.com/styles/v1/mapbox/dark-v9/tiles/256/{z}/{x}/{y}?access_token=pk.eyJ1IjoiY29va2llcyIsImEiOiJjaW9sOGpwYjgwMGJtdmtqYmFieGYwcGR5In0.ot-rN7HEza9xJSijmrAOUQ', {
+           maxZoom: 18,
+           attribution: 'Map data © <a href="http://openstreetmap.org">OpenStreetMap</a> contributors, ' +
+            '<a href="http://creativecommons.org/licenses/by-sa/2.0/">CC-BY-SA</a>, ' +
+            'Imagery © <a href="http://mapbox.com">Mapbox</a>',
+           id: 'mapbox.streets'
+      });
+    var mymap = new L.Map('map', {
+     center: new L.LatLng(31.25, 121.58),
+     zoom: 11,
+     layers: [baseLayer]
+   });
+            // Initialize the SVG layer
+           mymap._initPathRoot();
+
+            d3.json("bundling_data/data-nodeNum.json", function (json) {
+                //Transform the XML data into a proper format used by the algorithm
+               
+                var eedges = [];
+                var edgeNum=[];
+                var nnodes = {};
+                var nodeNum=[];
+                var min_x = Number.MAX_VALUE;
+                var max_x = 0;
+                var min_y = Number.MAX_VALUE;
+                var max_y = 0;
+                json.node.forEach(function(d){
+                    var key=d.id;
+                    var x = Math.abs(d.x);
+                    var y = Math.abs(d.y);
+                    nnodes[key] = {
+                        'x': x,
+                        'y': y
+                    };
+                    min_x = Math.min(min_x, x);
+                    max_x = Math.max(max_x, x);
+                    min_y = Math.min(min_y, y);
+                    max_y = Math.max(max_y, y);
+
+                });
+             json.edge.forEach(function(d){
+                 var key=d.id;
+                    eedges.push({
+                        'source':d.source,
+                        'target': d.target
+                    });
+                    edgeNum[key]=d.num;
+                });
+             var length=json.num.length;
+              for(var i=0;i<length;i++)
+              {
+                      nodeNum[i]=json.num[i];
+              }
+                var new_scale_x = d3.scale.linear().domain([min_x, max_x]).range([1000, 50]);
+                var new_scale_x_decode = d3.scale.linear().domain([1000,50]).range([min_x, max_x]);
+
+                var new_scale_y = d3.scale.linear().domain([min_y, max_y]).range([560,50]);
+                var new_scale_y_decode = d3.scale.linear().domain([560,50]).range([min_y, max_y]);
+
+                for (var i = 0; i < json.node.length; i++) {
+                    nnodes[i].x = new_scale_x(nnodes[i].x);
+                    nnodes[i].y = new_scale_y(nnodes[i].y);
+                }
+                // console.log('Nodes', nnodes);
+                // console.log('Edges', eedges);
+
+                //Run the FDEB algorithm using default values on the data
+                var fbundling = d3.ForceEdgeBundling().nodes(nnodes).edges(eedges);
+                var results = fbundling();
+              
+               // We pick up the SVG from the map object..........
+            var m_svg = d3.select("#map").select("svg");
+            var svg = m_svg.append("g");
+               
+
+                    // .attr("width", 1200)
+                    // .attr("height", 800);
+
+                // svg = svg.append('g');
+                // svg.append('rect').attr({
+                //     'fill': '#99d8c9',
+                //     'width': 1200,
+                //     'height': 600
+                // });
+                // svg.attr('transform', 'translate(20, 20)');
+
+
+                var d3line = d3.svg.line()
+                    .x(function (d) {
+                        var latlon=new L.LatLng(new_scale_y_decode(d.y)/10, new_scale_x_decode(d.x)/10);
+                        //console.log(d.x);.
+                        return mymap.latLngToLayerPoint(latlon).x;
+                    })
+                    .y(function (d) {
+                          var latlon=new L.LatLng(new_scale_y_decode(d.y)/10, new_scale_x_decode(d.x)/10);
+                        //console.log(d.x);.
+                        return mymap.latLngToLayerPoint(latlon).y;
+                        //return d.y;
+                    })
+                    .interpolate("linear");
+
+                var maxNum=Math.max.apply(Math,edgeNum);//最大数值
+                 var maxNodeNum=Math.max.apply(Math,nodeNum);
+                 var avNum=0;
+                
+                 var allNum=0;
+               
+                 for(var i=0;i<edgeNum.length;i++){
+                       allNum+=edgeNum[i];
+                 }
+                 avNum=Math.round(allNum/edgeNum.length);
+                console.log(maxNum);
+                 console.log(avNum);
+                 console.log(results.length);
+                 console.log(results[3]);
+                 var r=0;
+                 var color=null;
+                //plot the data
+                for (var i = 0; i < results.length; i++) {
+                     r=Math.round(edgeNum[i]*125/avNum)+130;
+                   color=d3.rgb(r,0,0);
+                    svg.append("path").attr("d", d3line(results[i]))
+                        .style("stroke-width", 1)
+                        .style("stroke", color)
+                        .style("fill", "none")
+                        .style('stroke-opacity', 0.115);
+                   //d3line(results[i]);
+                }
+
+                //draw nodes
+                svg.selectAll('.node')
+                    .data(d3.entries(nnodes))
+                    .enter()
+                    .append('circle')
+                    .classed('node', true)
+                    .attr('fill','#ffee00')
+                    .attr('r',function(d,i){
+                        if (nodeNum[i]==0) {
+                            return 0;
+                        }
+                         return Math.round(nodeNum[i]*4.0/maxNodeNum)+2;
+                    })
+                    .attr("transform", function(d,i){
+                         var latlon=new L.LatLng(new_scale_y_decode(nnodes[i].y)/10, new_scale_x_decode(nnodes[i].x)/10)
+                        // console.log(latlon);
+                         return "translate(" + mymap.latLngToLayerPoint(latlon).x + "," + mymap.latLngToLayerPoint(latlon).y + ")";
+                   });
+                    nodeNum=[];
+                    nnodes=[];
+            });
+        })
+    </script>
+</body>
+
+</html>
