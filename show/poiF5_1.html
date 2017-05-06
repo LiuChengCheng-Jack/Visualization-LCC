@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <title>poi 区域功能2</title>
+
+    <script type="text/javascript" src="js/jquery.js"></script>
+    <script src="js/d3.v3.js" charset="utf-8"></script>
+    <script type="text/javascript" src="js/leaflet.js"></script>
+    <link rel="stylesheet" type="text/css" href="css/leaflet.css">
+    <style type="text/css">
+      html,body{
+        width: 100%;
+        height: 100%;
+      }
+        #map{
+            height:100%;
+            width: 100%;
+        }
+        #show{
+           position: absolute;
+           left: 20px;
+           top:100px;
+           opacity: 0.98;
+           background-color: white;
+           font-size: 20px;
+           color: black;
+        }
+        .c{
+          display: inline-block;
+          width: 60px;
+          height: 10px;
+        }
+        .c0{
+              background-color: #7fc97f;
+        }
+        .c1{
+              background-color: #beaed4;
+        }
+         .c2{
+               background-color:#fdc086;
+        }
+        .c3{
+             background-color:#ffff99;
+        }
+         .c4{
+            background-color:#386cb0;
+        }
+        .c5{
+            background-color: #f0027f;
+        }
+    </style>
+</head>
+
+<body>
+    <div id="map">
+    </div>
+    <div id="show">
+       <div> <div class="c0 c"></div><span>住宅</span></div>
+       <div> <div class="c1 c"></div><span>工作</span></div>
+        <div> <div class="c2 c"></div><span>教育</span></div>
+       <div> <div class="c3 c"></div><span>商业</span></div>
+       <div> <div class="c4 c"></div><span>公共服务</span></div>
+       <div> <div class="c5 c"></div><span>景点</span></div>
+    </div>
+    <script>
+        $(function () {
+                      var baseLayer = L.tileLayer('https://api.mapbox.com/styles/v1/mapbox/dark-v9/tiles/256/{z}/{x}/{y}?access_token=pk.eyJ1IjoiY29va2llcyIsImEiOiJjaW9sOGpwYjgwMGJtdmtqYmFieGYwcGR5In0.ot-rN7HEza9xJSijmrAOUQ', {
+           maxZoom: 18,
+           attribution: 'Map data 漏 <a href="http://openstreetmap.org">OpenStreetMap</a> contributors, ' +
+            '<a href="http://creativecommons.org/licenses/by-sa/2.0/">CC-BY-SA</a>, ' +
+            'Imagery 漏 <a href="http://mapbox.com">Mapbox</a>',
+           id: 'mapbox.streets'
+      });
+    var mymap = new L.Map('map', {
+     center: new L.LatLng(31.25, 121.58),
+     zoom: 11,
+     layers: [baseLayer]
+   });
+            // Initialize the SVG layer
+           mymap._initPathRoot();
+
+            d3.json("bundling_data/poiF5_1.json", function (data) {
+                //Transform the XML data into a proper format used by the algorithm
+               
+               //console.log(data);
+                var nnodes=[];
+                data.forEach(function(d,i){
+                    var x = Math.abs(d.lng);
+                    var y = Math.abs(d.lat);
+                    var f=Math.abs(d.fun);
+                    nnodes[i] = {
+                        'x': x,
+                        'y': y,
+                        'z':f
+                    };
+                });
+             
+              
+               // We pick up the SVG from the map object..........
+            var m_svg = d3.select("#map").select("svg");
+            var svg = m_svg.append("g");
+               var zoom;
+
+                //draw nodes
+                svg.selectAll('.node')
+                    .data(d3.entries(nnodes))
+                    .enter()
+                    .append('circle')
+                    .classed('node', true)
+                    .attr('fill',function(d,i){
+                        switch (nnodes[i].z) {
+                            case 0:
+                               return '#7fc97f';
+                                break;
+                           case 1:
+                              return  '#beaed4';
+                                break;
+                          case 2:
+                              return  '#fdc086';
+                                break;
+                          case 3:
+                               return '#ffff99';
+                                break;
+                          case 4:
+                               return '#386cb0';
+                                break;
+                         case 5:
+                              return '#f0027f';
+                                break;
+                        }
+                    })
+                    .attr('r',0.5)
+                    .attr("transform", function(d,i){
+                         var latlon=new L.LatLng(nnodes[i].y,nnodes[i].x);
+                        // console.log(latlon);
+                         return "translate(" + mymap.latLngToLayerPoint(latlon).x + "," + mymap.latLngToLayerPoint(latlon).y + ")";
+                   });
+                    mymap.on("zoomend",function(){
+                        zoom=mymap.getZoom();
+                   svg.selectAll('.node')
+                  .attr("transform", function(d,i){
+                         var latlon=new L.LatLng(nnodes[i].y,nnodes[i].x);
+                        // console.log(latlon);
+                         return "translate(" + mymap.latLngToLayerPoint(latlon).x + "," + mymap.latLngToLayerPoint(latlon).y + ")";
+                   })
+                  .attr('r',function(){
+                      return 0.3*(zoom-11)+0.3;
+                  });
+             });
+            });
+             $(window).unload(function(){
+      
+                 svg=null;
+                 mymap=null;
+                 nnodes=[];
+             });
+        })
+    </script>
+</body>
+
+</html>

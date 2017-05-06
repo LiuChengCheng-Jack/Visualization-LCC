@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <title>poi 功能划分</title>
+
+    <script type="text/javascript" src="js/jquery.js"></script>
+    <script src="js/d3.v3.js" charset="utf-8"></script>
+    <script type="text/javascript" src="js/leaflet.js"></script>
+    <link rel="stylesheet" type="text/css" href="css/leaflet.css">
+    <style type="text/css">
+        #map{
+            height:600px;
+            width: 1200px;
+        }
+    </style>
+</head>
+
+<body>
+    <div id="map">
+    </div>
+    <script>
+        $(function () {
+                      var baseLayer = L.tileLayer('https://api.mapbox.com/styles/v1/mapbox/dark-v9/tiles/256/{z}/{x}/{y}?access_token=pk.eyJ1IjoiY29va2llcyIsImEiOiJjaW9sOGpwYjgwMGJtdmtqYmFieGYwcGR5In0.ot-rN7HEza9xJSijmrAOUQ', {
+           maxZoom: 18,
+           attribution: 'Map data © <a href="http://openstreetmap.org">OpenStreetMap</a> contributors, ' +
+            '<a href="http://creativecommons.org/licenses/by-sa/2.0/">CC-BY-SA</a>, ' +
+            'Imagery © <a href="http://mapbox.com">Mapbox</a>',
+           id: 'mapbox.streets'
+      });
+    var mymap = new L.Map('map', {
+     center: new L.LatLng(31.25, 121.58),
+     zoom: 11,
+     layers: [baseLayer]
+   });
+            // Initialize the SVG layer
+           mymap._initPathRoot();
+
+            d3.json("bundling_data/poiF1.json", function (data) {
+                //Transform the XML data into a proper format used by the algorithm
+               
+               //console.log(data);
+                var nnodes=[];
+                data.forEach(function(d,i){
+                    var x = Math.abs(d.lng);
+                    var y = Math.abs(d.lat);
+                    var f=Math.abs(d.fun);
+                    nnodes[i] = {
+                        'x': x,
+                        'y': y,
+                        'z':f
+                    };
+                });
+             
+              
+               // We pick up the SVG from the map object..........
+            var m_svg = d3.select("#map").select("svg");
+            var svg = m_svg.append("g");
+               var zoom;
+
+                //draw nodes
+                svg.selectAll('.node')
+                    .data(d3.entries(nnodes))
+                    .enter()
+                    .append('circle')
+                    .classed('node', true)
+                    .attr('fill',function(d,i){
+                        switch (nnodes[i].z) {
+                            case 0:
+                               return '#7fc97f';
+                                break;
+                           case 1:
+                              return  '#beaed4';
+                                break;
+                          case 2:
+                              return  '#fdc086';
+                                break;
+                          case 3:
+                               return '#ffff99';
+                                break;
+                          case 4:
+                               return '#386cb0';
+                                break;
+                         case 5:
+                              return '#f0027f';
+                                break;
+                        }
+                    })
+                    .attr('r',0.5)
+                    .attr("transform", function(d,i){
+                         var latlon=new L.LatLng(nnodes[i].y,nnodes[i].x);
+                        // console.log(latlon);
+                         return "translate(" + mymap.latLngToLayerPoint(latlon).x + "," + mymap.latLngToLayerPoint(latlon).y + ")";
+                   });
+                    mymap.on("zoomend",function(){
+                        zoom=mymap.getZoom();
+                   svg.selectAll('.node')
+                  .attr("transform", function(d,i){
+                         var latlon=new L.LatLng(nnodes[i].y,nnodes[i].x);
+                        // console.log(latlon);
+                         return "translate(" + mymap.latLngToLayerPoint(latlon).x + "," + mymap.latLngToLayerPoint(latlon).y + ")";
+                   })
+                  .attr('r',function(){
+                      return 0.3*(zoom-11)+0.3;
+                  });
+             });
+            });
+             $(window).unload(function(){
+      
+                 svg=null;
+                 mymap=null;
+                 nnodes=[];
+             });
+        })
+    </script>
+</body>
+
+</html>
