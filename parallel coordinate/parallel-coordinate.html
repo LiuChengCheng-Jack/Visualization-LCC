@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html>
+<head>
+            <meta charset="utf-8">
+            <title>parallel coordinate</title>
+            <script type="text/javascript" src="js/d3.v4.js"></script>
+            <style type="text/css">
+            	 
+            </style>
+</head>
+<body>
+<script type="text/javascript">
+
+ var width=600;
+var height=600;
+var svg=d3.select("body")
+                  .append("svg")
+                  .attr("width",width)
+                  .attr("height",height);
+
+  //画布周边的空白
+  var padding = {left:30, right:30, top:40, bottom:20};
+var yLinear=d3.scaleLinear()
+                  .domain([0,47])
+                  .range([width-padding.top-padding.bottom,0]);//y轴倒着写var yLinear=d3.scaleLinear()
+
+var yLinear2=d3.scaleLinear()
+                  .domain([0,542])
+                  .range([width-padding.top-padding.bottom,0]);//y轴倒着写
+
+
+// var xLinear=d3.scaleBand()//ordinal 中的一个子类
+//                      .domain(subject)//相当于[0,1,2,3]
+//                      .rangeRound([0, width - padding.left - padding.right]);
+
+// //定义x轴
+//   var xAxis = d3.axisBottom()
+//     .scale(xLinear);
+    
+  //定义y轴
+  var yAxis = d3.axisLeft()
+    .scale(yLinear)
+    .ticks(8);
+
+     var yAxis2 = d3.axisLeft()
+    .scale(yLinear2)
+    .ticks(5);
+
+
+//     .attr("height",function(d,i){
+//              return height - padding.top - padding.bottom - yLinear(d);
+//     })
+
+ 
+//绘制直线（1）
+
+// svg.append('line')
+//       .attr('x1',30)
+//       .attr('y1',40)
+//       .attr('x2',180)
+//       .attr('y2',90)
+//       .attr('stroke','blue');
+
+//绘制直线（2）,要看数据类型，v3版本的用法d3.svg.line()
+//4.0 introduces a new curve API for specifying how line and area shapes interpolate between data points. 
+//The line.interpolate and area.interpolate methods have been replaced with line.curve and area.curve.
+
+ var  line=d3.line()
+                 .x(function(d){return d.x;})
+                 .y(function(d){return d.y;});
+                // .curve(d3.curveCatmullRom.alpha(1));
+                 //.interpolate("linear");
+               
+//var lineData=[{"x":30,   "y":100},  {"x":180,  "y":200},{"x":360,"y":30}];
+
+var title=['From','Time','To'];
+
+  //添加y轴
+  svg.append("g")
+    .attr("class","axis")
+    .attr("transform","translate(" + padding.left + "," + padding.top + ")")
+    .call(yAxis2);
+
+    svg.append("g")
+    .attr("class","axis")
+    .attr("transform","translate(" + padding.left*6 + "," + padding.top + ")")
+    .call(yAxis);
+
+     svg.append("g")
+    .attr("class","axis")
+    .attr("transform","translate(" + padding.left*12 + "," + padding.top + ")")
+    .call(yAxis2);
+
+svg.selectAll('.text')
+     .data(title)
+      .enter()
+      .append('text')
+      .attr('class','text')
+      .attr('transform',function(d,i){
+             return "translate(" + padding.left*6*i + "," + padding.top/2 + ")"
+      })
+      .text(function(d,i){
+             return d;
+      });
+ //    svg.append('path')
+ //        .attr('d',line(lineData))
+ //        .attr('stroke','blue')
+ //        .attr('fill','none');
+
+ // //绘制直线(3) 使用M,L属性进行画图  M指的是起点，L是其他点
+ //     svg.append('path')
+ //        .attr('d','M30,50L180,60')
+ //        .attr('stroke','blue');
+
+  d3.json("data/out.json",function(json){
+          //console.log(json);
+          var k=0;
+          var color=['#7fc97f','#beaed4','#fdc086','#ffff99','#386cb0'];
+          var lline=[];
+          json.forEach(function(d,i){
+                var element=[];
+                element.push({
+                      "x":padding.left,
+                      "y": padding.top+yLinear2(d.start)
+                });
+                element.push({
+                      "x":padding.left*6,
+                      "y": padding.top+yLinear(d.time)
+                });
+                element.push({
+                      "x":padding.left*12,
+                      "y": padding.top+yLinear2(d.end)
+                });
+                lline[i]=element;
+          });
+          //console.log(lline)
+          lline.forEach(function(d,i){
+                  if (i%200==0) {
+                      svg.append('path')
+                 .attr('d',line(d))
+                 .attr('stroke',function(){
+                       var time=json[i].time;
+                       if (time<=14) {
+                                return color[0];
+                       }
+                       else if (time<=18) {
+                                return color[1];
+                       }
+                       else if (time<=34) {
+                                return color[2];
+                       }
+                       else if (time<=42) {
+                                return color[3];
+                       }
+                       else{
+                                return color[4];
+                       }
+                 })
+                 .attr('class',function(d){
+                     return "od"+json[i].time+" line";
+                 })
+                 .attr("stroke-width",1)
+                 .attr('fill','none')
+                 .attr('opacity',0.75)
+                .on("mouseover.foo",function(d){
+                       
+                        d3.select(this)
+                        .attr('opacity',1)
+                       .attr("stroke-width",function(d){
+                             if (json[i].num>10) {
+                                 return 12;
+                             }
+                             else{
+                                return json[i].num+2;
+                             }
+                       })
+                       .attr('display','inherit');
+
+                  })
+                .on('click',function(){
+                       var cla=".od"+json[i].time;
+                        k=1-k;
+                        if (k==1) {
+                           d3.selectAll('.line')
+                                .attr('display','none');
+
+                              d3.selectAll(cla)
+                               .attr('display','inherit');
+                        }
+                       else{
+                              d3.selectAll('.line')
+                                 .attr('display','inherit');
+                       }
+                        
+                })
+                .on("mouseout",function(d){
+
+                        d3.select(this)
+                       .attr("stroke-width",1)
+                       .attr('opacity',0.65);
+                  });
+             } 
+          });
+  });
+</script>
+</body>
+</html>
