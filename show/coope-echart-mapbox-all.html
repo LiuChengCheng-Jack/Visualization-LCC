@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html style="height: 100%">
+
+<head>
+    <meta charset="utf-8">
+    <style>
+        .echartMap div {
+            position: absolute;
+            overflow: auto;
+        }
+    </style>
+</head>
+
+<body style="height: 100%; margin: 0">
+    <div id="container" style="height: 100%"></div>
+    <script type="text/javascript" src="../js/jquery.js"></script>
+    <script type="text/javascript" src="../lib/echarts-all-3.js"></script>
+    <script src='../lib/mapbox-gl-dev.js'></script>
+    <link href='../lib/mapbox-gl.css' rel='stylesheet' />
+    <script type="text/javascript" src="../js/EchartsLayer.js"></script>
+    <script>
+
+      $.get('bundling_data/sh_coop.json', function(data) {
+
+               
+                function getCoord(idx) {
+                   return [data.nodes[idx][1], data.nodes[idx][2]];
+                }
+                  var routes = data.routes.map(function (range) {
+                       return [
+                           getCoord(range[1]-1),
+                           getCoord(range[2]-1)
+                       ];
+               });
+
+      mapboxgl.accessToken = 'pk.eyJ1IjoibGNjY2NsMTIzMzIxIiwiYSI6ImNqNDR4d3FqZTE3ZmwycXM5Mm42dWJ1cm0ifQ.OQaBMKbWknJOsUWOh_k9ew';
+        var map = new mapboxgl.Map({
+            container: 'container', // container id
+            style: 'mapbox://styles/mapbox/dark-v9',
+            center: [121.47, 31.25], // starting position
+            zoom: 10 // starting zoom
+        })
+     map.addControl(new mapboxgl.NavigationControl())
+
+     map.on('load', function() {
+
+         var echartslayer = new EchartsLayer(map);
+         echartslayer.chart.setOption(option = {
+             title: {
+                 text: 'shanghai coope',
+                 left: 'center',
+                 textStyle: {
+                     color: '#eee'
+                 }
+             },
+
+             tooltip: {
+                 formatter: function(param) {
+                     var route = data.routes[param.dataIndex];
+                     return data.nodes[route[1]][0] + ' > ' + data.nodes[route[2]][0];
+                 }
+             },
+             GLMap: {
+                 roam: true
+             },
+             series: [{
+                 type: 'lines',
+                 coordinateSystem: 'GLMap',
+                 data: routes,
+                 large: true,
+                 largeThreshold: 5,
+                 lineStyle: {
+                     normal: {
+                         // opacity: 0.05,
+                         // width: 0.5,
+                         // curveness: 0.3
+                         opacity: 0.45,
+                         width: 0.95,
+                         curveness: 0.1
+                     }
+                 },
+                 // 设置混合模式为叠加
+                 blendMode: 'lighter'
+             }]
+         });
+
+     })
+
+ });
+    </script>
+</body>
+
+</html>

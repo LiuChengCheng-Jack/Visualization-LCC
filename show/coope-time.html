@@ -239,7 +239,6 @@
             eedges=[]; 
             edgeNumOne=[];
             //console.log(coope.length);
-            var row=0;
             coope.forEach(function(d){
                     var item=d.item;
                     var countN=d.count;
@@ -251,7 +250,6 @@
                      }
                 }); 
             var num=0;
-            var kkk=0;
                 for(var i=0;i<542;i++)
               {
                        for(var j=0;j<542;j++)
@@ -262,12 +260,8 @@
                                        'target':j
                                 });
                             edgeNumOne[num++]=edgeNum[i][j];
-                                         row++;
                             }
-                            
                       }
-                      console.log('row'+row);
-                            row=0;
             }
              drawPath();
             console.log('time'+count);
@@ -310,37 +304,16 @@
                 }
                    console.log('平均值'+avNum);
                  //plot the data
-                // for (var i = 0; i < results.length; i++) {
-                //      r=Math.round(edgeNumOne[i]*125.0/avNum)+130;
-                //    color=d3.rgb(r,0,0);
-                //     svg.append("path").attr("d", d3line(results[i]))
-                //         .style("stroke-width", function(){
-                //                return Math.round(edgeNumOne[i]*0.32/avNum)+1;
-                //         })
-                //         .style("stroke", color)
-                //         .style("fill", "none")
-                //         .style('stroke-opacity', 0.715);    
-                // }   
-                var color2;
-                var colorHunt=['#FF0000','#FF00FF','#00FF00','#0000FF'];
-                 for (var i = 0; i < results.length; i++) {
+                for (var i = 0; i < results.length; i++) {
                      r=Math.round(edgeNumOne[i]*125.0/avNum)+130;
-                   color=d3.rgb(255,0,255);
-                   color2=d3.rgb(218,150,214);
+                   color=d3.rgb(r,0,0);
                     svg.append("path").attr("d", d3line(results[i]))
-                        .style("stroke-width", function(){ 
-                              return Math.round(edgeNumOne[i]*0.32/avNum)+1;
+                        .style("stroke-width", function(){
+                               return Math.round(edgeNumOne[i]*0.32/avNum)+1;
                         })
-                        .style("stroke", function(){
-                             if(edgeNumOne[i]>=avNum)
-                                  return color;
-                              else
-                                 return color2;
-                        })
+                        .style("stroke", color)
                         .style("fill", "none")
-                        .style('stroke-opacity', function(){
-                             return 0.715;
-                        });    
+                        .style('stroke-opacity', 0.715);    
                 }
 
                 //draw nodes

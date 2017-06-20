@@ -1,0 +1,538 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <title>Cooperate</title>
+    <script type="text/javascript" src="../js/jquery.js"></script>
+    <script src="../js/d3.v3.js" charset="utf-8"></script>
+    <script type="text/javascript" src="js/leaflet.js"></script>
+    <link rel="stylesheet" type="text/css" href="css/leaflet.css">
+    <style type="text/css">
+        html,body{
+            width:100%;
+            height: 100%;
+        }
+        #map{
+            height:100%;
+            width: 100%;
+        }
+        .box{
+            position:fixed;
+            top:10%;
+            right: 2%;
+            width: 200px;
+            height: 50px;
+            z-index: 999;
+            background: white;
+            opacity: .7;
+            border-radius: 4px;
+
+        }
+        #lable_id{
+            width: 70px;
+            height: 30px;
+            margin: 7px;
+        }
+        #button{
+            width: 50px;
+            height: auto;
+            margin-left: 20px;
+        }
+        .node{
+            border:none;
+        }
+        .bar{
+            position: fixed;
+            width: 100%;
+            height: 100%;
+            z-index: 9999;
+            background: rgba(0,0,0,.4);
+            top:0;
+            left: 0;
+            display:flex;
+            justify-content:center;
+            align-items:center;
+        }
+        .content{
+            display: flex;
+            width: 200px;
+            height: 100px;
+            justify-content:center;
+            align-items:center;
+        }
+       #show{
+           position: absolute;
+           left: 20px;
+           top:50px;
+           opacity: 0.9;
+           padding:0;
+           margin:0;
+           background-color: white;
+           font-size: 20px;
+           color: black;
+        }
+         #choose{
+           position: absolute;
+           left: 800px;
+           top:50px;
+           opacity: 0.78;
+           padding:0;
+           margin:0;
+           background-color: white;
+           font-size: 20px;
+           color: black;
+           margin: 0 auto;
+           padding: 10px;
+           width:250px;
+        }
+        #submit{
+            vertical-align: center;
+            text-align: center;
+        }
+        .tooltip{
+            position: absolute;
+            width: 350px;
+            height: auto;
+            font-size: 14px;
+            text-align: center;
+            padding: 8px;
+            color:white;
+            background-color: #414141;
+            border-radius: 5px;
+            transition: all .5s;
+        }
+        .center_t{
+            color:white;
+        }
+    </style>
+</head>
+<body>
+    <div id="map"></div>
+    <div id="show"></div>
+    <div id="choose">
+        <label>Range</label><input type="text" name="range" id="range" value="210"><br/>
+        <button id='submit'>submit</button>
+    </div>
+<script type="text/javascript">
+    var mymap;
+    var bmpWidth=949;
+    var bmpHeight=470;
+    var rectWidth;
+    var rectHeight;
+    var svg;
+    var p_svg;
+    var x_left,y_left;
+    var latlon_left=new L.LatLng(31.37,121.31);
+    var nodes=[];
+    var coope=[];
+    var allData=[];
+    var width=700;
+    var height = 700;
+    var lat_p,lng_p;
+    var R=250;
+    var tooltip;
+    var q=0;
+    var areaFun;
+    function getRectHeight(map) {
+        var lat1=31.15;
+        var lat2=lat1+(31.37-31.15)/bmpHeight;
+        var lng=121.31;
+        var latlon1=new L.LatLng(lat1,lng);
+        var latlon2=new L.LatLng(lat2,lng);
+        return map.latLngToLayerPoint(latlon1).y-map.latLngToLayerPoint(latlon2).y;
+    }
+    function getRectWidth(map) {
+        var lat=31.15;
+        var lng1=121.31;
+        var lng2=lng1+(121.84-121.31)/bmpWidth;
+        var latlon1=new L.LatLng(lat,lng1);
+        var latlon2=new L.LatLng(lat,lng2);
+        return map.latLngToLayerPoint(latlon2).x-map.latLngToLayerPoint(latlon1).x;
+    }
+    function mapInit() {
+        var baseLayer = L.tileLayer('https://api.mapbox.com/styles/v1/mapbox/dark-v9/tiles/256/{z}/{x}/{y}?access_token=pk.eyJ1IjoiY29va2llcyIsImEiOiJjaW9sOGpwYjgwMGJtdmtqYmFieGYwcGR5In0.ot-rN7HEza9xJSijmrAOUQ', {
+            maxZoom: 18,
+            attribution: 'Map data © <a href="http://openstreetmap.org">OpenStreetMap</a> contributors, ' +
+            '<a href="http://creativecommons.org/licenses/by-sa/2.0/">CC-BY-SA</a>, ' +
+            'Imagery © <a href="http://mapbox.com">Mapbox</a>',
+            id: 'mapbox.streets'
+        });
+        mymap = new L.Map('map', {
+            center: new L.LatLng(31.28, 121.28),
+            zoom: 11,
+            layers: [baseLayer]
+        });
+        // Initialize the SVG layer
+        mymap._initPathRoot();
+        rectWidth = getRectWidth(mymap);
+        rectHeight = getRectHeight(mymap);
+        x_left=mymap.latLngToLayerPoint(latlon_left).x;
+        y_left=mymap.latLngToLayerPoint(latlon_left).y;
+        //------------
+        lat_p=(31.37-31.15)/bmpHeight;
+        lng_p=(121.84-121.31)/bmpWidth;
+
+        var m_svg = d3.select("#map").select("svg");
+        svg = m_svg.append("g");
+        p_svg= d3.select("#show")
+            .append('svg')
+            .attr('height',width)
+            .attr('width',height);
+
+        tooltip = d3.select("body")
+            .append("div")
+            .attr("class","tooltip")
+            .style("opacity",0.0);
+    }
+    function getData(r){
+        var i,j;
+        var close;
+        var label;
+        coope=new Array();
+        var f;
+        for( i=0;i<542;i++){
+            coope[i]=new Array();
+            for(j=0;j<48;j++){
+                coope[i][j]=0;
+            }
+        }
+        allData.forEach(function (item,dex) {
+            label=item.ID;
+            close=item.close_set;
+            close.forEach(function (t,m) {
+                f=0;
+                t.item.forEach(function (d) {
+                    if(d===r){
+                        f=1;
+                        return ;
+                    }
+                });
+                if(f===1){
+                    t.item.forEach(function (d) {
+                        if(d!=r){
+                            coope[d][label]+=t.count;
+                        }
+                    });
+                }
+            })
+        });
+    }
+    function getRingCount() {
+        var len=[];
+        var flag=new Array();
+        var i,j;
+        for(i=0;i<542;i++)
+            flag[i]=0;
+        for(i=0;i<542;i++){
+            for(j=0;j<48;j++){
+                if(coope[i][j]!=0)
+                    flag[i]=1;
+            }
+        }
+        for(i=0;i<542;i++){
+            if(flag[i]!=0)
+                len.push(i);
+        }
+        return len;
+    }
+    function getColor(i,j) {
+//       var start=[158,202,225];
+//       var end=[49,130,189];
+//       var mid=[16,78,139];
+
+        var start=[249,237,105];
+        var end=[184,59,94];
+        var mid=[240,138,93];
+
+       var maxLen=800;
+       var minLen=100;
+       var c_rx=(end[0]-mid[0])/(maxLen-minLen);
+       var c_gx=(end[1]-mid[1])/(maxLen-minLen);
+       var c_bx=(end[2]-mid[2])/(maxLen-minLen);
+       var c_rn=(mid[0]-start[0])/(minLen);
+       var c_gn=(mid[1]-start[1])/(minLen);
+       var c_bn=(mid[2]-start[2])/(minLen);
+
+       var temp=[];
+       if(coope[i][j]>=maxLen)
+           temp = end;
+       else if(coope[i][j]===0){
+           temp[0]=255;
+           temp[1]=255;
+           temp[2]=255;
+       }
+       else {
+          // console.log(coope[i][j]);
+           if(coope[i][j]>100){
+               temp[0]=parseInt(mid[0]+c_rx*coope[i][j]);
+               temp[1]=parseInt(mid[1]+c_gx*coope[i][j]);
+               temp[2]=parseInt(mid[2]+c_bx*coope[i][j]);
+           }
+           else {
+               temp[0]=parseInt(start[0]+c_rn*coope[i][j]);
+               temp[1]=parseInt(start[1]+c_gn*coope[i][j]);
+               temp[2]=parseInt(start[2]+c_bn*coope[i][j]);
+           }
+
+       }
+       var color='#';
+       for(var i=0;i<3;i++){
+           var h=Number(temp[i]).toString(16);
+           if(h==="0")
+                h+=h;
+           color+=h;
+       }
+       return color;
+    }
+    function getTimeCount() {
+        var flag=new Array();
+        var i,j;
+        for(i=0;i<48;i++)
+            flag[i]=0;
+        for(i=0;i<542;i++){
+            for(j=0;j<48;j++){
+                if(coope[i][j]!=0)
+                    flag[j]=1;
+            }
+        }
+        return flag;
+    }
+    function sortTime(dat,pieData) {
+        var size=0;
+        dat.forEach(function (d) {
+           if(d!=0)
+               size++;
+        });
+        var angle=0;
+        var l=2*Math.PI/size;
+        pieData.forEach(function (d) {
+            if(d.data!=0){
+                d.startAngle=angle;
+                d.endAngle=d.startAngle+l;
+                angle=d.endAngle;
+            }
+        })
+        return pieData;
+    }
+    function getAeraFunction() {
+
+    }
+    function timeToClock(t) {
+        var text='';
+        var h=Math.floor(t/2);
+        if(h<10)
+            text+='0';
+        text+=h;
+        if(t%2==0)
+            text+=':00';
+        else
+            text+=':30';
+        return text;
+    }
+    function drawPie(k) {
+        p_svg.selectAll('g').remove();
+        p_svg.append('circle')
+            .attr("transform", "translate(" + (width / 2) + "," + (height / 2) + ")") //圆图的位置
+            .attr("fill", 'white')
+            .attr('r', 25);
+        p_svg.append('text')
+            .attr('fill','#638CCC')
+            .attr("transform", "translate(" + (width / 2) + "," + (height / 2+11)+ ")") //圆图的位置
+            .attr("text-anchor", "middle")
+            .on('mouseover',function (d,time,i) {
+                tooltip.html("区域编号："+k+"， 区域功能："+areaFun[k])
+                    .style("left", (d3.event.pageX) + "px")
+                    .style("top", (d3.event.pageY + 20) + "px")
+                    .style("width",240+'px')
+                    .style("opacity",1.0);
+            })
+            .on("mousemove",function(d){
+                /* 鼠标移动时，更改样式 left 和 top 来改变提示框的位置 */
+
+                tooltip.style("left", (d3.event.pageX) + "px")
+                    .style("top", (d3.event.pageY + 20) + "px");
+            })
+            .on("mouseout",function(d){
+                /* 鼠标移出时，将透明度设定为0.0（完全透明）*/
+                tooltip.style("opacity",0.0);
+            })
+           // .attr('font-size',16)
+            .text(function () {
+                return k;
+            });
+        getData(k);
+        var len=getRingCount();
+        var dat=getTimeCount();
+        if(len.length==0)
+            return ;
+        len.sort(function (d1,d2) {
+           return d1-d2;
+        });
+        var temp=R/len.length;
+        var pie = d3.layout.pie(); //d3.layout.pie(); 为v3版本 定义一个布局t
+        var piedata = pie(dat); //经布局处理过的数据
+        piedata=sortTime(dat,piedata);
+        var timeBar=p_svg.selectAll('.time')
+            .data(piedata)
+            .enter()
+            .append('g')
+            .attr('class','time')
+            .attr("transform","translate("+ (width/2) +","+ (height/2) +")");//饼状图的位置
+
+        timeBar.append("path")//为选择集添加路径
+            .attr("fill",'white')
+            .attr('stroke','white')
+            .attr('stroke-width',.5)
+            .attr("d",function(d,time){//路径值的属性名称
+                return (d3.svg.arc()//d3.svg.arc() v3 版本/弧生成器，生成路径所需要的弧生成器
+                    .innerRadius(R+25) //设置内半径
+                    .outerRadius(R+25+50))(d);  //设置外半径
+            });
+        timeBar.append("text")//为选择集添加路径
+            .attr("fill",'#638CCC')
+            .attr("transform",function(d){
+                var pix=(d3.svg.arc()//d3.svg.arc() v3 版本/弧生成器，生成路径所需要的弧生成器
+                    .innerRadius(R+25) //设置内半径
+                    .outerRadius(R+50+25)).centroid(d);
+                pix[1]+=8;
+                return "translate(" + pix + ")";//弧的中央
+            })
+            .attr("text-anchor", "middle")
+            .text(function (d,t) {
+                if(d.data!=0){
+                   return timeToClock(t);
+                }
+                else
+                    return '';
+            });
+
+        for(var i=0;i<len.length;i++){
+            p_svg.selectAll('.cir'+i)//选择集，g为分组元素
+                 .data(piedata)
+                 .enter()
+                 .append("g")
+                 .attr('class','.cir'+i)
+                 .attr("transform","translate("+ (width/2) +","+ (height/2) +")")//饼状图的位置
+                 .on('mouseover',function (d,time,i) {
+                    var name=this.className.baseVal;
+                    name=name.replace(".cir",'');
+                    tooltip.html("区域编号："+len[parseInt(name)]+"，区域功能："+areaFun[len[parseInt(name)]]+"， 时间："+timeToClock(time)+'， 支持度：'+coope[len[parseInt(name)]][time])
+                        .style("left", (d3.event.pageX) + "px")
+                        .style("top", (d3.event.pageY + 20) + "px")
+                        .style("width",420+'px')
+                        .style("opacity",1.0);
+                })
+                .on("mousemove",function(d){
+                    /* 鼠标移动时，更改样式 left 和 top 来改变提示框的位置 */
+
+                    tooltip.style("left", (d3.event.pageX) + "px")
+                        .style("top", (d3.event.pageY + 20) + "px");
+                })
+                .on("mouseout",function(d){
+                    /* 鼠标移出时，将透明度设定为0.0（完全透明）*/
+                    tooltip.style("opacity",0.0);
+                })
+                .append("path")//为选择集添加路径
+                .attr("fill",function(d,time){
+                    return getColor(len[i],time);
+                })
+                .attr('stroke','#C0C0C0')
+                .attr('stroke-width',.5)
+                .attr("d",function(d,time){//路径值的属性名称
+                    return (d3.svg.arc()//d3.svg.arc() v3 版本/弧生成器，生成路径所需要的弧生成器
+                               .innerRadius(25+temp*i) //设置内半径
+                               .outerRadius(25+temp*(i+1)))(d);  //设置外半径
+                })
+        }
+    }
+    function run() {
+        drawPie(q);
+        q++;
+        if(q==542)
+            q=0;
+    }
+    $(function () {
+        mapInit();
+        d3.json("bundling_data/center.json", function (data) {
+            nodes=data;
+        });
+        d3.json("bundling_data/range-func.json", function (data) {
+            areaFun=data;
+        });
+        d3.json("bundling_data/coope.json", function (data) {
+                allData=data;
+                drawPie(319);
+                $('#submit').click(function(){
+                     var r=$('#range').val();
+                     var rNum=parseInt(r);
+                     if ( (typeof rNum=='number')&& !isNaN(rNum)) {
+                              if (rNum>541||rNum<0) {
+                                 alert('区域有误');
+                                 return;
+                           }
+                           drawPie(rNum);
+                     }
+                     else{
+                        alert("输入有误");
+                     }
+                });
+//                setInterval(function () {
+//                    run();
+//                },1000)
+           });
+        mymap.on("zoomend", function () {
+
+                rectWidth = getRectWidth(mymap);
+                rectHeight = getRectHeight(mymap);
+
+                  var all=[];
+                 coope.forEach(function(d,i){
+                       var co=d.item;
+                       var element=[];
+
+                       for(var i=0;i<co.length;i++)
+                       {
+                          var k=co[i];
+
+                          var x=nodes[k-1].x;;
+                         var y=nodes[k-1].y;
+                         var lat=31.15+y*lat_p;
+                         var lng=121.31+x*lng_p;
+                         var latlon1=new L.LatLng(lat,lng);
+                         mymap.latLngToLayerPoint(latlon1).x;
+                          element.push({
+                             "x":mymap.latLngToLayerPoint(latlon1).x,
+                            "y":mymap.latLngToLayerPoint(latlon1).y
+                          });
+                       }
+                       all.push(element);
+                });
+
+                   svg.selectAll('.node')
+                 .attr('cx',function(d){
+                         var x=d.x;
+                         var y=d.y;
+                         var lat=31.15+y*lat_p;
+                         var lng=121.31+x*lng_p;
+                         var latlon1=new L.LatLng(lat,lng);
+                         //console.log(d);
+                         return mymap.latLngToLayerPoint(latlon1).x;
+
+                 })
+                 .attr('cy',function(d){
+                          var x=d.x;
+                          var y=d.y;
+                          var lat=31.15+y*lat_p;
+                          var lng=121.31+x*lng_p;
+                          var latlon1=new L.LatLng(lat,lng);
+                            return mymap.latLngToLayerPoint(latlon1).y;
+                 })
+                 .attr('r',2)
+                 .attr('fill','blue');
+
+        });
+    })
+    </script>
+</body>
+
+</html>

@@ -1,0 +1,276 @@
+<!DOCTYPE html>
+<html style="height: 100%">
+
+<head>
+    <meta charset="utf-8">
+    <style>
+        .echartMap div {
+            position: absolute;
+            overflow: auto;
+        }
+         #choose{
+           position: absolute;
+           left: 600px;
+           top:30px;
+           opacity: 0.78;
+           padding:0;
+           margin:0;
+           background-color: white;
+           font-size: 20px;
+           color: black;
+           margin: 0 auto;
+           padding: 10px;
+        }
+      #stop{
+          float:right;
+       }
+    </style>
+</head>
+
+<body style="height: 100%; margin: 0">
+    <div id="container" style="height: 100%"></div>
+       <div id="choose"> 
+          <div id="time"></div>
+         <button id="begin">begin</button>
+        <button id="stop">stop</button>
+    </div>
+
+    <script type="text/javascript" src="../js/jquery.js"></script>
+    <script type="text/javascript" src="../lib/echarts-all-3.js"></script>
+    <script src='../lib/mapbox-gl-dev.js'></script>
+    <link href='../lib/mapbox-gl.css' rel='stylesheet' />
+    <script src="../js/d3.v3.js" charset="utf-8"></script>
+    <script type="text/javascript" src="../js/EchartsLayer.js"></script>
+    <script>
+     
+    var bmpWidth = 949;
+    var bmpHeight = 470;
+    var lat_p = (31.37 - 31.15) / bmpHeight;
+    var lng_p = (121.84 - 121.31) / bmpWidth;
+
+    var nodes = [];
+    var coope = [];
+    var allData = [];
+    var time = 0;
+    var map;
+    var echartslayer;
+    var t_svg;
+
+    function getCoord(idx) {
+        return [nodes[idx][1], nodes[idx][2]];
+    }
+
+    function changeData() {
+        time++;
+        if (time > 47) {
+            time = 0;
+        }
+        console.log(time);
+        allData.forEach(function(d, i) {
+            if (d.ID == time)
+                coope = d.close_set;
+        });
+        changeLayer();
+       var yLinear = d3.scale.linear() //新版本的写法 scaleLinear()
+               .domain([0, 24])
+               .range([0, 510]);
+
+       t_svg.select('#tt')
+             .attr('cx',yLinear(time/2.0)+20)
+             .attr('cy',11)
+             .attr('r',4)
+             .attr('fill','yellow');            
+    }
+
+    function drawTime() {
+         var yLinear = d3.scale.linear() //新版本的写法 scaleLinear()
+            .domain([0, 24])
+            .range([0, 510]); //y轴倒者写
+
+            //定义y轴
+             var yAxis = d3.svg.axis() //Left()
+                  .scale(yLinear)
+                  .orient("bottom")
+                   .ticks(10);
+
+               //添加x轴
+                 t_svg.append("g")
+                    .attr("class", "axis")
+                     .attr("transform", "translate(" + 20 + "," + 10 + ")") //设定位置
+                     .call(yAxis);
+                t_svg.append('circle')
+                      .attr('cx', yLinear(0) + 20)
+                      .attr('cy', 11)
+                      .attr('r', 4)
+                      .attr('id', 'tt')
+                      .attr('fill', 'yellow');
+      }
+      
+    function changeLayer() {
+        var edge = [];
+        var dd=[];
+        for(var i=0;i<542;i++)
+         {
+                 var e=[];
+                  for(var j=0;j<542;j++)
+                  {
+                             e[j]=0;
+                  }
+                  dd.push(e);
+       }
+          var edge = [];
+
+          coope.forEach(function(d, i) {
+              var item = d.item;
+              for (var i = 0; i < item.length - 1; i++) {
+                  for (var j = i + 1; j < item.length; j++) {
+                      dd[item[i]][item[i+1]]++;
+                      //edge.push([1, item[i], item[j]]);
+                  }
+              }
+          });
+          for(var i=0;i<542;i++)
+          {
+                for(var j=0;j<542;j++)
+                {
+                           if(dd[i][j]!=0)
+                            {
+                              edge.push([1, i, j]);
+                              edge.push([1, i, j]);
+                            }
+                }
+          }
+        var routes = edge.map(function(range) {
+            return [
+                getCoord(range[1] - 1),
+                getCoord(range[2] - 1)
+            ];
+        });
+        echartslayer.chart.setOption(option = {
+            title: {
+                text: 'shanghai coope',
+                left: 'center',
+                textStyle: {
+                    color: '#eee'
+                }
+            },
+
+            tooltip: {
+                formatter: function(param) {
+                    var route = edge[param.dataIndex];
+                    return nodes[route[1]][0] + ' -> ' + nodes[route[2]][0];
+                }
+            },
+            GLMap: {
+                roam: true
+            },
+            series: [{
+                type: 'lines',
+                coordinateSystem: 'GLMap',
+                data: routes,
+                large: true,
+                largeThreshold: 20,
+                lineStyle: {
+                    normal: {
+                        // opacity: 0.05,
+                        // width: 0.5,
+                        // curveness: 0.3
+                        opacity: 0.55,
+                       curveness: 0.1,
+                       width: 0.95
+                    }
+                },
+                // 设置混合模式为叠加
+                blendMode: 'lighter'
+            }]
+        });
+
+    }
+
+    $.get('bundling_data/center.json', function(data) {
+
+        data.forEach(function(d, i) {
+            var lat = 31.15 + d.y * lat_p;
+            var lng = 121.31 + d.x * lng_p;
+            nodes.push([d.label, lng, lat]);
+        });
+
+        function getCoord(idx) {
+            return [nodes[idx][1], nodes[idx][2]];
+        }
+        $.get('bundling_data/coope.json', function(json) {
+
+            allData = json;
+            json.forEach(function(d, i) {
+                if (d.ID == time)
+                    coope = d.close_set;
+            });
+            var dd=[];
+            for(var i=0;i<542;i++)
+            {
+                 var e=[];
+                  for(var j=0;j<542;j++)
+                  {
+                             e[j]=0;
+                  }
+                  dd.push(e);
+            }
+            var edge = [];
+
+            coope.forEach(function(d, i) {
+                var item = d.item;
+                for (var i = 0; i < item.length - 1; i++) {
+                    for (var j = i + 1; j < item.length; j++) {
+                        dd[item[i]][item[i+1]]++;
+                        //edge.push([1, item[i], item[j]]);
+                    }
+                }
+            });
+            for(var i=0;i<542;i++)
+            {
+                  for(var j=0;j<542;j++)
+                  {
+                             if(dd[i][j]!=0)
+                                  edge.push([dd[i][j], i, j]);
+                  }
+            }
+            var routes = edge.map(function(range) {
+                return [
+                    getCoord(range[1] - 1),
+                    getCoord(range[2] - 1)
+                ];
+            });
+            mapboxgl.accessToken = 'pk.eyJ1IjoibGNjY2NsMTIzMzIxIiwiYSI6ImNqNDR4d3FqZTE3ZmwycXM5Mm42dWJ1cm0ifQ.OQaBMKbWknJOsUWOh_k9ew';
+            map = new mapboxgl.Map({
+                container: 'container', // container id
+                style: 'mapbox://styles/mapbox/dark-v9',
+                center: [121.47, 31.25], // starting position
+                zoom: 10 // starting zoom
+            })
+            map.addControl(new mapboxgl.NavigationControl())
+
+            map.on('load', function() {
+
+                echartslayer = new EchartsLayer(map);
+
+                 t_svg=d3.select('#time').append('svg')
+                                .attr('width',600)
+                                .attr('height',40);
+                drawTime();
+                changeLayer();
+                var timeInt;
+                 timeInt=self.setInterval("changeData()",2000);
+                    $('#begin').click(function(){
+                         timeInt=self.setInterval("changeData()",2000);
+                    });
+                    $('#stop').click(function(){
+                         window.clearInterval(timeInt);
+                    });
+            })
+
+        });
+    });
+    </script>
+</body>
+
+</html>
