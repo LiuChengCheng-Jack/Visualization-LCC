@@ -1,0 +1,651 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <title>Cooperate</title>
+
+    <script type="text/javascript" src="../js/jquery.js"></script>
+    <script src="../js/d3.v4.js" charset="utf-8"></script>
+    <script type="text/javascript" src="js/leaflet.js"></script>
+    <script type="text/javascript" src="js/d3-ForceEdgeBundling.js"></script>
+    <link rel="stylesheet" type="text/css" href="css/leaflet.css">
+    <style type="text/css">
+        html,body{
+            width:100%;
+            height: 100%;
+        }
+        #map{
+            height:100%;
+            width: 100%;
+        }
+        .box{
+            position:fixed;
+            top:10%;
+            right: 2%;
+            width: 200px;
+            height: 50px;
+            z-index: 999;
+            background: white;
+            opacity: .7;
+            border-radius: 4px;
+
+        }
+        #lable_id{
+            width: 70px;
+            height: 30px;
+            margin: 7px;
+        }
+        #button{
+            width: 50px;
+            height: auto;
+            margin-left: 20px;
+        }
+        .node{
+            border:none;
+        }
+        .bar{
+            position: fixed;
+            width: 100%;
+            height: 100%;
+            z-index: 9999;
+            background: rgba(0,0,0,.4);
+            top:0;
+            left: 0;
+            display:flex;
+            justify-content:center;
+            align-items:center;
+        }
+        .content{
+            display: flex;
+            width: 200px;
+            height: 100px;
+            justify-content:center;
+            align-items:center;
+        }
+  /*
+         #show{
+           position: absolute;
+           left: 20px;
+           top:100px;
+           opacity: 0.98;
+           background-color: white;
+           font-size: 20px;
+           color: black;
+        }*/
+           #choose{
+           position: absolute;
+           width:40%;
+           left: 600px;
+           top:30px;
+           opacity: 0.78;
+           padding:0;
+           margin:0;
+           background-color: white;
+           font-size: 20px;
+           color: black;
+           margin: 0 auto;
+           padding: 10px;
+        }
+       #set{
+          text-align: center;
+          margin:0 auto;
+       }
+       button{
+          border-radius: 2px;
+       }
+    </style>
+</head>
+
+<body>
+    <div id="map">
+    </div>
+      
+       <div id="choose"> 
+          <div id="time"></div>
+         <div id="set"><button>begin/stop</button></button></div>
+    </div>
+    <script>
+    var mymap;
+    var bmpWidth = 949;
+    var bmpHeight = 470;
+  
+    var svg;
+    var t_svg;
+
+    var latlon_left = new L.LatLng(31.37, 121.31);
+    var nodes = [];
+    var coope = [];
+
+    var allData = [];
+    var count = 0;
+    var hot = [];
+
+    //-----------------
+    var lat_p, lng_p;
+    var ranFunc; //加载每个区域的功能
+
+    var timeInt; //用于时间间隔
+    var timeflag=1;
+
+    //边捆绑用到的变量
+    var edgeNumOne = []; //按照有边累加
+    var eedges = [];
+    var edgeNum = [];
+    var nnodes = {};
+    var nodeNum = [];
+    var min_x = Number.MAX_VALUE;
+    var max_x = 0;
+    var min_y = Number.MAX_VALUE;
+    var max_y = 0;
+    var results;
+
+    var new_scale_x;
+    var new_scale_x_decode;
+    var new_scale_y;
+    var new_scale_y_decode;
+  
+    //var colorP=['#7fc97f','#beaed4','#fdc086',,'#386cb0' ,'#f0027f'];
+    var colorP=['#00FF00','#FF00FF','#F9ED69','#FFFF00','#386cb0','#FF847C'];
+    var label=['0:00','12:00','24:00'];
+
+    var yLinear = d3.scaleLinear()//新版本的写法 scale.linear()
+        .domain([0, 24])
+        .range([0, 510]); //y轴倒者写
+    var yLinear_decode= d3.scaleLinear()//新版本的写法 scale.linear()
+        .domain([0, 510])
+        .range([0, 24]); //y轴倒者写
+
+    var d3line = d3.line()
+      .x(function(d) {
+        var latlon = new L.LatLng(new_scale_y_decode(d.y) / 10, new_scale_x_decode(d.x) / 10);
+        return mymap.latLngToLayerPoint(latlon).x;
+      })
+      .y(function(d) {
+        var latlon = new L.LatLng(new_scale_y_decode(d.y) / 10, new_scale_x_decode(d.x) / 10);
+        return mymap.latLngToLayerPoint(latlon).y;
+      })      
+     .curve(d3.curveCardinal.tension(1)); 
+     //.curve(d3.curveBundle.beta(1));
+      //.curve(d3.curveBasis);
+      
+    var line = d3.line()
+       .x(function(d) {
+              var lat = 31.15 + d.y * lat_p;
+              var lng = 121.31 + d.x * lng_p;
+             var latlon = new L.LatLng(lat, lng);
+             return mymap.latLngToLayerPoint(latlon).x;
+        })
+       .y(function(d) {
+              var lat = 31.15 + d.y * lat_p;
+              var lng = 121.31 + d.x * lng_p;
+              var latlon = new L.LatLng(lat, lng);
+              return mymap.latLngToLayerPoint(latlon).y;
+        });
+
+     function dragMove(d){
+        if(timeflag==0){
+            d.dx += d3.event.dx;  
+            if(d.dx<20)
+            {
+                d.dx=20;
+            }
+             if(d.dx>530)
+            {
+                 d.dx=530;
+            }
+            d.dy= d3.event.dy;  
+            d3.select(this)  
+           .attr("x",d.dx); 
+            count=Math.round(yLinear_decode(d.dx-20)*2);  
+            console.log(count);
+        }   
+     }
+   
+var drag=d3.drag()
+                    .on('drag',dragMove);
+
+    function mapInit() {
+              var baseLayer = L.tileLayer('https://api.mapbox.com/styles/v1/mapbox/dark-v9/tiles/256/{z}/{x}/{y}?access_token=pk.eyJ1IjoiY29va2llcyIsImEiOiJjaW9sOGpwYjgwMGJtdmtqYmFieGYwcGR5In0.ot-rN7HEza9xJSijmrAOUQ', {
+                      maxZoom: 18,
+                      attribution: 'Map data © <a href="http://openstreetmap.org">OpenStreetMap</a> contributors, ' +
+                       '<a href="http://creativecommons.org/licenses/by-sa/2.0/">CC-BY-SA</a>, ' +
+                        'Imagery © <a href="http://mapbox.com">Mapbox</a>',
+                          id: 'mapbox.streets'
+             });
+             mymap = new L.Map('map', {
+                   center: new L.LatLng(31.27, 121.58),
+                    zoom: 11,
+                   layers: [baseLayer]
+             });
+                // Initialize the SVG layer
+              mymap._initPathRoot();
+                //------------
+              lat_p = (31.37 - 31.15) / bmpHeight;
+              // alert(lat_p);
+              lng_p = (121.84 - 121.31) / bmpWidth;
+    }
+
+    function changeData() {
+        count++;
+         if (count > 47) {
+               count = 0;
+          }
+        allData.forEach(function(d, i) {
+                if (d.ID == count) {
+                   coope = d.close_set;
+                   }
+        });
+        edgeNum = [];
+        for (var i = 0; i < 542; i++) {
+                var e = [];
+                  for (var j = 0; j < 542; j++) {
+                       e[j] = 0;
+             }
+              edgeNum.push(e);
+       }
+
+        eedges = [];
+        edgeNumOne = [];
+         for (var i = 0; i < 542; i++) {
+                 hot[i] = 0;
+        }
+        var row = 0;
+       coope.forEach(function(d) {
+        var item = d.item;
+        var countN = d.count;
+        for (var i = 0; i < item.length - 1; i++) {
+
+          var l = item[i];
+          var r = item[i + 1];
+          hot[l]++;
+          hot[r]++;
+          edgeNum[l][r] += countN;
+         }
+        });
+        var num = 0;
+       var kkk = 0;
+        for (var i = 0; i < 542; i++) {
+           for (var j = 0; j < 542; j++) {
+                   if (edgeNum[i][j] != 0) {
+                        eedges.push({
+                         'source': i,
+                         'target': j
+                     });
+            edgeNumOne[num++] = edgeNum[i][j];
+            row++;
+           }
+
+          }
+          row = 0;
+        }
+        drawPath();
+        console.log('time' + count);
+
+          t_svg.select('#tt')
+             .attr('x', yLinear(count / 2.0) + 20)
+             .attr('y',function(d){
+                 d.dx=yLinear(count / 2.0) + 20;
+                 return 5;
+             });
+  }
+
+    function drawPath() {
+        svg.selectAll('path')
+           .remove();
+
+         svg.selectAll('.node')
+          .remove();
+
+        var fbundling = d3.ForceEdgeBundling().nodes(nnodes).edges(eedges);
+        results = fbundling();
+
+        var maxNum = Math.max.apply(Math, edgeNumOne); //最大数值
+       //console.log('最大值:' + maxNum);
+        // var maxNodeNum=Math.max.apply(Math,nodeNum);
+        var avNum = 0;
+        var avNode=0;
+        var allNum = 0;
+        var allNode=0;
+        
+        for (var i = 0; i < hot.length; i++) {
+          allNode += hot[i];
+        }
+
+        for (var i = 0; i < edgeNumOne.length; i++) {
+          allNum += edgeNumOne[i];
+        }
+        
+        avNode = Math.round(allNode/542);
+         if (edgeNumOne.length != 0) {
+          avNum = Math.round(allNum / edgeNumOne.length);
+        } else {
+          avNum = 0;
+        }
+        
+        for (var i = 0; i < results.length; i++) {
+        r = Math.round(edgeNumOne[i] * 125.0 / avNum) + 130;
+        svg.append("path").attr("d", d3line(results[i]))
+          .style("stroke-width", function() {
+            return Math.round(edgeNumOne[i] * 0.32 / avNum) + 1;
+          })
+          .style("stroke", function() {
+            if (edgeNumOne[i] >= avNum)
+              return '#1414f4';
+            else
+              return '#7171f0';
+          })
+          .style("fill", "none")
+          .style('stroke-opacity', function() {
+            return 0.715;
+          });
+       }
+
+         var colorH=['#364F6B','#FC5185','#FCE38A','#3FC1C9','#202E24'];
+         //draw nodes
+        svg.selectAll('.node')
+        .data(d3.entries(nnodes))
+        .enter()
+        .append('circle')
+        .classed('node', true)
+        .attr('fill', function(d,i){
+             var fun=ranFunc[i+1];
+             return colorP[fun];
+        })
+        .attr('id',function(d,i){
+             return 'id'+i;
+        })
+        .attr('r', function(d, i) {
+          if (hot[i+1] >50&&hot[i+1]>avNode) {
+            return 3;
+          }
+          return 1;
+          // return Math.round(nodeNum[i]*4.0/maxNodeNum)+2;
+         })
+        .attr("transform", function(d, i) {
+          var latlon = new L.LatLng(new_scale_y_decode(nnodes[i + 1].y) / 10, new_scale_x_decode(nnodes[i + 1].x) / 10)
+            // console.log(latlon);
+          return "translate(" + mymap.latLngToLayerPoint(latlon).x + "," + mymap.latLngToLayerPoint(latlon).y + ")";
+         })
+       .on('mouseover.foo',function(d,m){
+                var top=[];
+                var range=[];
+                var count=0;
+                var id=m+1;
+                var has=0;
+                for(var i=0;i<542;i++){
+                    range.push({
+                         'label':i,
+                         'num':0
+                    });
+                }
+                console.log(id);
+               coope.forEach(function(d){
+                   var item=d.item;
+                   var cc=d.count;
+                   for(var i=0;i<item.length;i++)
+                   {
+                       if(item[i]==id){
+                             has=1;
+                             break;
+                       }
+                   }
+                   if(has==1){
+                         for(var i=0;i<item.length;i++)
+                        {
+                              range[item[i]].num+=cc;
+                       }
+                   }
+                   has=0;
+               });
+              range.sort(function(d1,d2){
+                  return d2.num-d1.num;
+              });
+              for(var j=0;j<6;j++)
+              {  
+                var edgeTem=[];
+                 if(range[j].num>0)
+                 {
+                        edgeTem.push({
+                           "x":nodes[id-1].x,
+                           "y":nodes[id-1].y
+                        });
+                          edgeTem.push({
+                           "x":nodes[range[j].label-1].x,
+                           "y":nodes[range[j].label-1].y
+                        });
+                 } 
+                 svg.append('g')
+                  .append('path')
+                  .attr('d',line(edgeTem))
+                  .attr('fill','none')
+                  .attr('stroke','yellow')
+                  .attr('class','temp')
+                  .attr('stroke-width',function(d)
+                    {
+                       return Math.round(range[j].num/100)+1;
+                    });
+              }
+          })
+         .on('mouseout',function(){
+                    d3.selectAll('.temp')
+                    .remove();
+           });
+    // }
+
+
+
+    }
+
+    function drawTime() {
+
+        //添加s轴
+        t_svg.append("line")
+         .attr('x0',0)
+         .attr('y0',0)
+         .attr('x1',510)
+         .attr('y1',0)
+         .attr("stroke", "red")
+        .attr("transform", "translate(" + 20 + "," + 10 + ")");//设定位置
+
+        t_svg.append("rect")
+         .attr('x',255)
+         .attr('y',0)
+         .attr('height',4)
+         .attr('width',2)
+         .attr("stroke", "blue")
+        .attr("transform", "translate(" + 20 + "," + 8 + ")");//设定位置
+       
+        t_svg.selectAll('.tN')
+        .data([{"dx":0,"dy":0}])
+        .enter()
+        .append('rect')
+        .attr('x', yLinear(0) + 20)
+        .attr('y', 5)
+        .attr('width', 4)
+        .attr('height',10)
+        .attr('id', 'tt')
+         .each(function(d){
+             d.dx = 20;
+             d.dy =10;
+         })
+        .attr('fill', 'yellow')
+        .call(drag);
+        t_svg.selectAll('.label')
+           .data(label)
+           .enter()
+           .append('text')
+           .attr('x',function(d,i){
+               return 245*i-15;
+           })
+           .attr('y',20)
+           .text(function(d){
+               return d;
+           })
+           .attr("transform", "translate(" + 20 + "," + 10 + ")");
+    }
+
+    $(function() {
+       mapInit();
+       for (var i = 0; i < 542; i++) {
+              var e = [];
+              for (var j = 0; j < 542; j++) {
+                    e[j] = 0;
+              }
+           edgeNum.push(e);
+       }
+        for (var i = 0; i < 542; i++) {
+                 hot[i] = 0;
+        }
+       d3.json("bundling_data/center.json", function(data) {
+
+          var m_svg = d3.select("#map").select("svg");
+         nodes = data;
+
+         data.forEach(function(d) {
+               var key = d.label;
+               var x = Math.abs(d.x);
+               var y = Math.abs(d.y);
+               var lat = 31.15 + y * lat_p;
+               var lng = 121.31 + x * lng_p;
+               nnodes[key] = {
+                      'x': lng * 10,
+                      'y': lat * 10
+                     };
+               min_x = Math.min(min_x, x);
+              max_x = Math.max(max_x, x);
+              min_y = Math.min(min_y, y);
+              max_y = Math.max(max_y, y);
+        });//data end-------
+        new_scale_x = d3.scaleLinear().domain([min_x, max_x]).range([1000, 50]);
+        new_scale_x_decode = d3.scaleLinear().domain([1000, 50]).range([min_x, max_x]);
+
+        new_scale_y = d3.scaleLinear().domain([min_y, max_y]).range([560, 50]);
+        new_scale_y_decode = d3.scaleLinear().domain([560, 50]).range([min_y, max_y]);
+
+        for (var i = 1; i <= data.length; i++) {
+          nnodes[i].x = new_scale_x(nnodes[i].x);
+          nnodes[i].y = new_scale_y(nnodes[i].y);
+        }
+
+        svg = m_svg.append("g");
+        t_svg = d3.select('#time').append('svg')
+          .attr('width', 600)
+          .attr('height', 30);
+
+       });//d3.json end
+
+        d3.json('bundling_data/range-func2.json',function(json){
+              ranFunc=json;
+        });
+
+       d3.json("bundling_data/coope.json", function(data) {
+        allData = data;
+        data.forEach(function(d, i) {
+          if (d.ID == 0) {
+            coope = d.close_set;
+          }
+        });
+        coope.forEach(function(d) {
+          var item = d.item;
+          var count = d.count;
+          for (var i = 0; i < item.length - 1; i++) {
+
+            var l = item[i];
+            var r = item[i + 1];
+            edgeNum[l][r] += count;
+          }
+
+        });
+        var num = 0;
+        for (var i = 0; i < 542; i++) {
+          for (var j = 0; j < 542; j++) {
+            if (edgeNum[i][j] != 0) {
+              eedges.push({
+                'source': i,
+                'target': j
+              });
+              edgeNumOne[num++] = edgeNum[i][j];
+            }
+          }
+
+        }
+        drawPath();
+        drawTime();  
+       timeInt = self.setInterval("changeData()", 2000);
+      
+        $('#set').click(function() {
+           if(timeflag==1)
+           {
+              window.clearInterval(timeInt);        
+           }
+           else{
+              timeInt = self.setInterval("changeData()", 2000);
+           }
+           timeflag=1-timeflag;
+        });
+        
+      });//d3.json end
+
+        mymap.on("zoomend", function() {
+
+        var avNum = 0;
+        var allNum = 0;
+
+        for (var i = 0; i < edgeNumOne.length; i++) {
+            allNum += edgeNumOne[i];
+        }
+        if (edgeNumOne.length != 0) {
+            avNum = Math.round(allNum / edgeNumOne.length);
+        } else {
+            avNum = 0;
+        }
+
+       for (var i = 0; i < results.length; i++) {
+          r = Math.round(edgeNumOne[i] * 125.0 / avNum) + 130;
+            svg.append("path").attr("d", d3line(results[i]))
+             .style("stroke-width", function() {
+                return Math.round(edgeNumOne[i] * 0.32 / avNum) + 1;
+          })
+            .style("stroke", function() {
+                if (edgeNumOne[i] >= avNum)
+                   return '#1414f4';
+                else
+                 return '#7171f0';
+             })
+          .style("fill", "none")
+          .style('stroke-opacity', function() {
+            return 0.715;
+          });
+       }
+
+        svg.selectAll('.node')
+          .attr('cx', function(item,i) {
+
+            var d=nodes[i];
+            var x = d.x;
+            var y = d.y;
+            var lat = 31.15 + y * lat_p;
+            var lng = 121.31 + x * lng_p;
+            var latlon1 = new L.LatLng(lat, lng);
+            //console.log(d);
+            return mymap.latLngToLayerPoint(latlon1).x;
+
+          })
+          .attr('cy', function(item,i) { 
+            var d=nodes[i];
+            var x = d.x;
+            var y = d.y;
+            var lat = 31.15 + y * lat_p;
+            var lng = 121.31 + x * lng_p;
+            var latlon1 = new L.LatLng(lat, lng);
+            return mymap.latLngToLayerPoint(latlon1).y;
+          })
+          .attr('r', 2)
+          .attr('fill', 'blue');
+
+      });///zoom end
+    })//$(function)结束
+    </script>
+</body>
+
+</html>
