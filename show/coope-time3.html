@@ -4,8 +4,8 @@
     <meta charset="utf-8">
     <title>Cooperate</title>
 
-    <script type="text/javascript" src="../js/jquery.js"></script>
-    <script src="../js/d3.v4.js" charset="utf-8"></script>
+    <script type="text/javascript" src="js/jquery.js"></script>
+    <script src="js/d3.v4.js" charset="utf-8"></script>
     <script type="text/javascript" src="js/leaflet.js"></script>
     <script type="text/javascript" src="js/d3-ForceEdgeBundling.js"></script>
     <link rel="stylesheet" type="text/css" href="css/leaflet.css">
@@ -340,7 +340,6 @@ var drag=d3.drag()
           });
        }
 
-         var colorH=['#364F6B','#FC5185','#FCE38A','#3FC1C9','#202E24'];
          //draw nodes
         svg.selectAll('.node')
         .data(d3.entries(nnodes))
@@ -430,10 +429,6 @@ var drag=d3.drag()
                     d3.selectAll('.temp')
                     .remove();
            });
-    // }
-
-
-
     }
 
     function drawTime() {
@@ -586,10 +581,21 @@ var drag=d3.drag()
         
       });//d3.json end
 
-        mymap.on("zoomend", function() {
+    mymap.on("zoomend", function() {
+
+         svg.selectAll('path')
+           .remove(); 
+         svg.selectAll('.node')
+           .remove();
 
         var avNum = 0;
         var allNum = 0;
+        var avNode=0;
+        var allNode=0;
+         for (var i = 0; i < hot.length; i++) {
+          allNode += hot[i];
+        }
+        avNode = Math.round(allNode/542);
 
         for (var i = 0; i < edgeNumOne.length; i++) {
             allNum += edgeNumOne[i];
@@ -619,6 +625,9 @@ var drag=d3.drag()
        }
 
         svg.selectAll('.node')
+        .data(nodes)
+          .enter()
+          .append('circle')
           .attr('cx', function(item,i) {
 
             var d=nodes[i];
@@ -640,8 +649,82 @@ var drag=d3.drag()
             var latlon1 = new L.LatLng(lat, lng);
             return mymap.latLngToLayerPoint(latlon1).y;
           })
-          .attr('r', 2)
-          .attr('fill', 'blue');
+         .attr('fill', function(d,i){
+             var fun=ranFunc[i+1];
+             return colorP[fun];
+        })
+        .attr('r', function(d, i) {
+          if (hot[i+1] >50&&hot[i+1]>avNode) {
+            return 3;
+          }
+          return 1;
+          // return Math.round(nodeNum[i]*4.0/maxNodeNum)+2;
+         })
+       .on('mouseover.foo',function(d,m){
+                var top=[];
+                var range=[];
+                var count=0;
+                var id=m+1;
+                var has=0;
+                for(var i=0;i<542;i++){
+                    range.push({
+                         'label':i,
+                         'num':0
+                    });
+                }
+                console.log(id);
+               coope.forEach(function(d){
+                   var item=d.item;
+                   var cc=d.count;
+                   for(var i=0;i<item.length;i++)
+                   {
+                       if(item[i]==id){
+                             has=1;
+                             break;
+                       }
+                   }
+                   if(has==1){
+                         for(var i=0;i<item.length;i++)
+                        {
+                              range[item[i]].num+=cc;
+                       }
+                   }
+                   has=0;
+               });
+              range.sort(function(d1,d2){
+                  return d2.num-d1.num;
+              });
+              for(var j=0;j<6;j++)
+              {  
+                var edgeTem=[];
+                 if(range[j].num>0)
+                 {
+                        edgeTem.push({
+                           "x":nodes[id-1].x,
+                           "y":nodes[id-1].y
+                        });
+                          edgeTem.push({
+                           "x":nodes[range[j].label-1].x,
+                           "y":nodes[range[j].label-1].y
+                        });
+                 } 
+                 svg.append('g')
+                  .append('path')
+                  .attr('d',line(edgeTem))
+                  .attr('fill','none')
+                  .attr('stroke','yellow')
+                  .attr('class','temp')
+                  .attr('stroke-width',function(d)
+                    {
+                       return Math.round(range[j].num/100)+1;
+                    });
+              }
+          })
+         .on('mouseout',function(){
+                    d3.selectAll('.temp')
+                    .remove();
+           });
+       
 
       });///zoom end
     })//$(function)结束
