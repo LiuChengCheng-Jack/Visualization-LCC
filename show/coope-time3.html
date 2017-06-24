@@ -76,23 +76,42 @@
            position: absolute;
            width:40%;
            left: 600px;
-           top:30px;
+           top:30px; 
            opacity: 0.78;
-           padding:0;
            margin:0;
            background-color: white;
            font-size: 20px;
            color: black;
            margin: 0 auto;
            padding: 10px;
+           padding-top:25px; 
         }
        #set{
           text-align: center;
-          margin:0 auto;
+          margin:0 38%;
+          border-radius: 2px;
+          border:1px solid gray;
+          background-color:#C3C3C3; 
+          color: black;
+       }
+       span{
+           width: auto;
+           height:auto;
        }
        button{
           border-radius: 2px;
        }
+       .tooltip{  
+           position: absolute;
+            height: auto;  
+            padding:2px;
+            font-size: 14px;  
+            text-align: center;  
+            border-style: solid;   
+            border-width: 1px;  
+            background-color:gray;  
+           border-radius: 2px;  
+      }          
     </style>
 </head>
 
@@ -102,7 +121,7 @@
       
        <div id="choose"> 
           <div id="time"></div>
-         <div id="set"><button>begin/stop</button></button></div>
+         <div id="set"><span >begin/stop</span></div>
     </div>
     <script>
     var mymap;
@@ -145,8 +164,11 @@
     var new_scale_y_decode;
   
     //var colorP=['#7fc97f','#beaed4','#fdc086',,'#386cb0' ,'#f0027f'];
-    var colorP=['#00FF00','#FF00FF','#F9ED69','#FFFF00','#386cb0','#FF847C'];
+    //var colorP=['#00FF00','#FF00FF','#F9ED69','#FFFF00','#386cb0','#FF847C'];
+    var colorP=['#e84c3d','#f39c11','#2dcc70','#3598db','#502e8d','#db4aa2'];
     var label=['0:00','12:00','24:00'];
+     var timeLabel=['0:00','0:30','1:00','1:30','2:00','2:30','3:00','3:30','4:00','4:30','5:00','5:30','6:00','6:30','7:00','7:30','8:00','8:30','9:00','9:30','10:00','10:30','11:00','11:30','12:00','12:30','13:00','13:30','14:00','14:30','15:00','15:30','16:00','16:30','17:00','17:30','18:00','18:30','19:00','19:30','20:00','20:30','21:00','21:30','22:00','22:30','23:00','23:30'];
+    var tooltip;
 
     var yLinear = d3.scaleLinear()//新版本的写法 scale.linear()
         .domain([0, 24])
@@ -163,10 +185,11 @@
       .y(function(d) {
         var latlon = new L.LatLng(new_scale_y_decode(d.y) / 10, new_scale_x_decode(d.x) / 10);
         return mymap.latLngToLayerPoint(latlon).y;
-      })      
-     .curve(d3.curveCardinal.tension(1)); 
+      })    
+      .curve(d3.curveBasis);  
+    // .curve(d3.curveCardinal.tension(1)); 
      //.curve(d3.curveBundle.beta(1));
-      //.curve(d3.curveBasis);
+      
       
     var line = d3.line()
        .x(function(d) {
@@ -197,12 +220,22 @@
             d3.select(this)  
            .attr("x",d.dx); 
             count=Math.round(yLinear_decode(d.dx-20)*2);  
+             tooltip.html(timeLabel[count])
+             .style("left", (600+d.dx)+ "px")  
+            .style("top", 32+ "px")  ;
             console.log(count);
         }   
      }
    
-var drag=d3.drag()
-                    .on('drag',dragMove);
+  function show(){
+          console.log('end');
+          if(count>0)
+               count--;
+           timeInt = self.setInterval("changeData()", 2000);
+           timeflag=1;
+      }
+var drag=d3.drag().on('drag',dragMove)
+                   .on('end',show);
 
     function mapInit() {
               var baseLayer = L.tileLayer('https://api.mapbox.com/styles/v1/mapbox/dark-v9/tiles/256/{z}/{x}/{y}?access_token=pk.eyJ1IjoiY29va2llcyIsImEiOiJjaW9sOGpwYjgwMGJtdmtqYmFieGYwcGR5In0.ot-rN7HEza9xJSijmrAOUQ', {
@@ -287,6 +320,9 @@ var drag=d3.drag()
                  d.dx=yLinear(count / 2.0) + 20;
                  return 5;
              });
+             tooltip.html(timeLabel[count])
+             .style("left", (620+yLinear(count / 2.0))+ "px")  
+            .style("top", 32+ "px")  ;
   }
 
     function drawPath() {
@@ -355,9 +391,9 @@ var drag=d3.drag()
         })
         .attr('r', function(d, i) {
           if (hot[i+1] >50&&hot[i+1]>avNode) {
-            return 3;
+            return 4;
           }
-          return 1;
+          return 2;
           // return Math.round(nodeNum[i]*4.0/maxNodeNum)+2;
          })
         .attr("transform", function(d, i) {
@@ -433,6 +469,14 @@ var drag=d3.drag()
 
     function drawTime() {
 
+    tooltip =d3.select('body')
+            .append("div")  
+            .attr("class","tooltip")  
+            .style("opacity",0.78)
+            .style("left", 620+ "px")  
+            .style("top", 32+ "px") 
+            .html(timeLabel[0]);  
+
         //添加s轴
         t_svg.append("line")
          .attr('x0',0)
@@ -456,8 +500,8 @@ var drag=d3.drag()
         .append('rect')
         .attr('x', yLinear(0) + 20)
         .attr('y', 5)
-        .attr('width', 4)
-        .attr('height',10)
+        .attr('width', 5)
+        .attr('height',13)
         .attr('id', 'tt')
          .each(function(d){
              d.dx = 20;
@@ -566,6 +610,7 @@ var drag=d3.drag()
         }
         drawPath();
         drawTime();  
+        $('#set').css('cursor', 'pointer')
        timeInt = self.setInterval("changeData()", 2000);
       
         $('#set').click(function() {
@@ -655,9 +700,9 @@ var drag=d3.drag()
         })
         .attr('r', function(d, i) {
           if (hot[i+1] >50&&hot[i+1]>avNode) {
-            return 3;
+            return 4;
           }
-          return 1;
+          return 2;
           // return Math.round(nodeNum[i]*4.0/maxNodeNum)+2;
          })
        .on('mouseover.foo',function(d,m){
