@@ -1,0 +1,733 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <title>flod</title>
+
+    <script type="text/javascript" src="../js/jquery.js"></script>
+    <script src="../js/d3.v4.js" charset="utf-8"></script>
+    <style type="text/css">
+        html,body{
+            width:100%;
+            height: 100%;
+        }
+        .tooltip{  
+              position: absolute;  
+              width: 120;  
+              height: auto;  
+              font-family: simsun;  
+              font-size: 14px;  
+              color: white;
+              text-align: center;  
+              border-style: solid;   
+              border-width: 1px;  
+              background-color: black;
+              border-radius: 5px;  
+              padding:5px 10px;
+        }  
+        #label{
+           height:auto;
+        }
+        #label2{
+          margin-top: 10px;
+           height:auto;
+        }
+    </style>
+</head>
+
+<body>
+    <script>
+         var allData=[];
+         var maxTickNum=441;
+         var maxDayNum=0;
+         var linear;
+
+         var restDay=[4,5,6,11,12,18,19,25,26];
+         var a = d3.rgb(255,255,255);    //白色  
+         var b = d3.rgb(192,192,192);    //灰色  
+         var c = d3.rgb(0,0,0);    //黑色  
+         var d = d3.rgb(255,0,0);    //红色       
+         var compute = d3.interpolate(a,b); 
+         var compute2 = d3.interpolate(b,c);      
+         var compute3 = d3.interpolate(c,d);  
+
+         var svg=d3.select('body')
+                         .append('svg')
+                         .attr('width',1000)
+                         .attr('height',0)
+                         .attr('class','node');
+
+         var defs = svg.append("defs");  
+         var linearGradient = defs.append("linearGradient")  
+                        .attr("id","linearColor")  
+                        .attr("x1","0%")  
+                        .attr("y1","0%")  
+                        .attr("x2","100%")  
+                        .attr("y2","0%");  
+         var stop1 = linearGradient.append("stop")  
+                .attr("offset","0%")  
+                .style("stop-color",'#FFFFFF');  
+         var stop2 = linearGradient.append("stop")  
+                .attr("offset","40%")  
+                .style("stop-color",b.toString());
+         var stop3 = linearGradient.append("stop")  
+                .attr("offset","85%")  
+                .style("stop-color",c.toString());  
+         var stop4 = linearGradient.append("stop")  
+                .attr("offset","100%")  
+                .style("stop-color",d.toString()); 
+         // var colorRect = svg.append("rect")  //颜色渐变器
+         //        .attr("x", 20)  
+         //        .attr("y", 200)  
+         //        .attr("width", 200)  
+         //        .attr("height", 20)  
+         //        .style("fill","url(#" + linearGradient.attr("id") + ")");  
+       
+          var tooltip = d3.select("body")  
+                          .append("div")  
+                          .attr("class","tooltip")  
+                          .style("opacity",0.0);  
+     function addShow(t_svg,state,inOut,tick,rest)//state代表状态(0 work,1 rest),inOut代表流入流出(0代表流入，1代表流出),tick表示时刻,rest代表休息数组
+     {
+
+           var countShow=[];//确定是否显示该块
+           for(var i=0;i<30;i++)
+           {
+              countShow[i]=0;
+           }
+          
+           for(var j=0;j<rest.length;j++)//记录休息的天数
+           {
+               countShow[rest[j]-1]=1;
+           }
+            if(state==0)//工作状态则反转
+           {
+                  for(var j=0;j<countShow.length;j++)
+                   {
+                       countShow[j]=1-countShow[j];
+                   }
+           }
+           var count=-1;
+           var y1=0,y2=0,y3=0;
+
+           if(inOut==0)
+           { 
+              y1=40;
+              y2=60;
+              y3=120;
+           }
+           else{
+              y1=150;
+              y2=170;
+              y3=230;
+           }
+             for(var k=0;k<4;k++)//画第一行
+           {
+                    count++;
+                    var left=430+k*110;
+                    var x=left+2*tick;
+                    if(countShow[count]==1)
+                     {
+                          t_svg.append('rect')
+                            .attr('x',x)
+                             .attr('y',y1)
+                             .attr('height',10)
+                             .attr('width',2)
+                              .attr('class','temp')
+                             .attr('fill','blue');                   
+                    }
+           }
+
+            for(var i=0;i<3;i++)//中间三行
+            {
+                var y=y2+i*20;
+                for(var k=0;k<7;k++)
+                {
+                      count++;
+                     var left=100+k*110; 
+                    var x=left+2*tick;
+                      if(countShow[count]==1)
+                     {
+                          t_svg.append('rect')
+                            .attr('x',x)
+                             .attr('y',y)
+                             .attr('height',10)
+                             .attr('width',2)
+                              .attr('class','temp')
+                             .attr('fill','blue');                   
+                    }
+
+                }
+           }
+
+             for(var k=0;k<4;k++)//画最后一行
+             {
+                  count++;
+                  var left=100+k*110;
+                  var x=left+2*tick;
+                  if(countShow[count]==1)
+                   {
+                        t_svg.append('rect')
+                          .attr('x',x)
+                           .attr('y',y3)
+                           .attr('height',10)
+                           .attr('width',2)
+                            .attr('class','temp')
+                           .attr('fill','blue');                   
+                  }
+                             
+              }
+       
+     }
+
+    function addRect2(doc,id,labelNum){//向图形中添加一个区域以及位置
+        var labelData//记录一个区域的所有数据
+
+          var flag=0;//1代表点击状态，0代表折叠状态
+          var allNum=0;
+          var max=maxTickNum;
+          var t_svg=d3.select('#'+id)
+                           .append('svg')
+                           .attr('width',900)
+                           .attr('height',30);
+
+          $('#'+id).on('click',function(){
+                  if(flag==0)
+                  {
+                      t_svg.attr('height',250)
+                  }
+                  else{
+                       t_svg.attr('height',30)
+                  }
+                  flag=1-flag;
+          });
+          t_svg.append('circle')
+            .attr('cx',20)
+            .attr('cy',20)
+            .attr('fill','red')
+            .attr('r',4);
+          t_svg.append('text')
+              .attr('x',30)
+              .attr('y',20)
+              .attr('dy',4)
+              .attr('fill','black')
+              .text(labelNum);
+
+          allData.forEach(function(d){
+                 if(d.label==labelNum)
+                 {
+                     labelData=d;
+                 }
+            });
+          allNum=labelData.avg_day;
+          //draw title of each range
+          for(var i=0;i<2;i++)
+          {
+              var y=10+i*10;
+               for(var j=0;j<48;j++)
+               {
+                   var color;
+                   var x=100+2*j;
+                   t_svg.append('rect')
+                      .attr('x',x)
+                       .attr('y',y)
+                       .attr('height',10)
+                       .attr('width',2)
+                       .attr('class',function(){//0代表in,1代表out
+                           var s=i+'rec';
+                           s+=' tick'+j;
+                           return s;
+                       })
+                       .attr('fill',function(){
+                           var num=0;
+                          if(i==0)
+                          
+                                num=labelData.flowIn_avgWork[j];
+                          
+                           else
+                               num=labelData.flowOut_avgWork[j];
+                           if(num<10)
+                           {
+                                return compute(num/10.0);
+                           }
+                           else if(num<100){
+                                return compute2(num/100.0);
+                           }
+                           else{
+                                return compute3(num/max);
+                           }
+                       })
+                       .on('mouseover.foo',function(){
+
+                                  tooltip.html('hi'+(i*10+j))
+                                              .style("left", (d3.event.pageX-10) + "px")  
+                                              .style("top", (d3.event.pageY -40) + "px")  
+                                              .style("opacity",0.7);  
+
+                                color=d3.select(this).attr('fill');
+
+                                d3.select(this)
+                                .attr('fill','blue');
+
+                                   var tick=parseInt($(this).attr('class').slice(9));
+                                   var tt=parseInt($(this).attr('class').slice(0,1));
+                                 addShow(t_svg,0,tt,tick,restDay);
+                       })
+                       .on("mouseout",function(d){  
+                                 tooltip.style("opacity",0.0);  
+                                d3.select(this)
+                                .attr('fill',color);
+                                d3.selectAll('.temp')
+                                 .remove();
+                        });
+
+               }
+          }
+          for(var i=0;i<2;i++)
+          {
+              var y=10+i*10;
+               for(var j=0;j<48;j++)
+               {
+                    var color;
+                   var x=200+2*j;
+                   t_svg.append('rect')
+                      .attr('x',x)
+                       .attr('y',y)
+                       .attr('height',10)
+                       .attr('width',2)
+                      .attr('class',function(){
+                            var s=i+'rec';
+                           s+=' tick'+j;
+                           return s;
+                      })
+                      .attr('fill',function(){
+                           var num=0;
+                          if(i==0)
+                          
+                                num=labelData.flowIn_avgRest[j];
+                          
+                           else
+                               num=labelData.flowOut_avgRest[j];
+                           if(num<10)
+                           {
+                                return compute(num/10.0);
+                           }
+                           else if(num<100){
+                                return compute2(num/100.0);
+                           }
+                           else{
+                                return compute3(num/max);
+                           }
+                       })
+                       .on('mouseover.foo',function(){
+                                  tooltip.html('hi'+(i*10+j))
+                                              .style("left", (d3.event.pageX-10) + "px")  
+                                              .style("top", (d3.event.pageY -40) + "px")  
+                                              .style("opacity",0.7);  
+                                  color=d3.select(this).attr('fill');
+                                  d3.select(this).attr('fill','blue');
+                                  var tick=parseInt($(this).attr('class').slice(9));
+                                  var tt=parseInt($(this).attr('class').slice(0,1));
+                                 addShow(t_svg,1,tt,tick,restDay);
+                               
+                       })
+                       .on("mouseout",function(d){  
+                                 tooltip.style("opacity",0.0);  
+                                 d3.select(this).attr('fill',color);
+                                d3.selectAll('.temp')
+                                 .remove();
+                        });
+
+               }
+          }
+           t_svg.append('rect')
+                    .attr('x',300)
+                     .attr('y',10)
+                     .attr('height',20)
+                     .attr('width',linear(allNum))
+                     .attr('fill',compute(0.8));
+
+           t_svg.append('text')
+                    .attr('x',linear(allNum)+310)
+                    .attr('y',20)
+                    .attr('dy',4)
+                    .attr('fill','black')
+                    .text(allNum);
+            
+             t_svg.append('line')
+                    .attr('x1',20)
+                    .attr('y1',35)
+                    .attr('x2',700)
+                    .attr('y2',35)
+                    .attr('stroke','black')
+                    .attr('fill','black')
+                    .attr('class','time');
+
+        //draw the concrete rect
+        var flowIn=labelData.flow_in;
+        var flowOut=labelData.flow_out;
+        var count=-1;
+        for(var k=0;k<4;k++)//画第一行
+         {
+              count++;
+                t_svg.append('text')
+                    .attr('x',70)
+                    .attr('y',40)
+                    .attr('dy',12)
+                    .attr('fill','black')
+                    .text(1);
+              var left=430+k*110;
+               for(var j=0;j<48;j++)
+                 {
+                     var x=left+2*j;
+                     t_svg.append('rect')
+                        .attr('x',x)
+                         .attr('y',40)
+                         .attr('height',10)
+                         .attr('width',2)
+                          .attr('class',function(){
+                             var s='rec';
+                             var k=labelNum*j;
+                             s+=' time'+k;
+                             return s;
+                          })
+                         .attr('fill',function(){
+                            
+                              var numL=flowIn[count][j];
+                               if(numL<10)
+                               {
+                                    return compute(numL/10.0);
+                               }
+                               else if(numL<100){
+                                    return compute2(numL/100.0);
+                               }
+                               else{
+                                    return compute3(numL/max);
+                               }
+                         })
+                         .on('mouseover.foo',function(){
+                                    tooltip.html('hi'+(i*10+j))
+                                                .style("left", (d3.event.pageX-10) + "px")  
+                                                .style("top", (d3.event.pageY- 40) + "px")  
+                                                .style("opacity",0.7);  
+                         })
+                         .on("mouseout",function(d){  
+                                   tooltip.style("opacity",0.0);  
+                          });
+
+                  }
+          }
+
+          for(var i=0;i<3;i++)//中间三行
+          {
+              var y=60+i*20;
+               t_svg.append('text')
+                    .attr('x',70)
+                    .attr('y',y)
+                    .attr('dy',10)
+                    .attr('fill','black')
+                    .text(i+2);
+              for(var k=0;k<7;k++)
+              {
+                        count++;
+                         var left=100+k*110;
+                         for(var j=0;j<48;j++)
+                       {
+                           var x=left+2*j;
+                           t_svg.append('rect')
+                              .attr('x',x)
+                               .attr('y',y)
+                               .attr('height',10)
+                               .attr('width',2)
+                                .attr('class',function(){
+                                   var s='rec';
+                                   var k=labelNum*j;
+                                   s+=' time'+k;
+                                   return s;
+                                })
+                               .attr('fill',function(){
+                                    var numL=flowIn[count][j];
+                                     if(numL<10)
+                                     {
+                                          return compute(numL/10.0);
+                                     }
+                                     else if(numL<100){
+                                          return compute2(numL/100.0);
+                                     }
+                                     else{
+                                          return compute3(numL/max);
+                                     }
+                               })
+                               .on('mouseover.foo',function(){
+                                          tooltip.html('hi'+(i*10+j))
+                                                      .style("left", (d3.event.pageX-10) + "px")  
+                                                      .style("top", (d3.event.pageY- 40) + "px")  
+                                                      .style("opacity",0.7);  
+                               })
+                               .on("mouseout",function(d){  
+                                         tooltip.style("opacity",0.0);  
+                                });
+
+                       }
+              }
+            
+         }
+      
+         for(var k=0;k<4;k++)//画最后一行
+         {
+              count++;
+               t_svg.append('text')
+                    .attr('x',70)
+                    .attr('y',120)
+                    .attr('dy',12)
+                    .attr('fill','black')
+                    .text(5);
+              var left=100+k*110;
+               for(var j=0;j<48;j++)
+                 {
+                     var x=left+2*j;
+                     t_svg.append('rect')
+                        .attr('x',x)
+                         .attr('y',120)
+                         .attr('height',10)
+                         .attr('width',2)
+                          .attr('class',function(){
+                             var s='rec';
+                             var k=labelNum*j;
+                             s+=' time'+k;
+                             return s;
+                          })
+                         .attr('fill',function(){
+                            
+                              var numL=flowIn[count][j];
+                              
+                               if(numL<10)
+                               {
+                                    return compute(numL/10.0);
+                               }
+                               else if(numL<100){
+                                    return compute2(numL/100.0);
+                               }
+                               else{
+                                    return compute3(numL/max);
+                               }
+                         })
+                         .on('mouseover.foo',function(){
+                                    tooltip.html('hi'+(i*10+j))
+                                                .style("left", (d3.event.pageX-10) + "px")  
+                                                .style("top", (d3.event.pageY- 40) + "px")  
+                                                .style("opacity",0.7);  
+                         })
+                         .on("mouseout",function(d){  
+                                   tooltip.style("opacity",0.0);  
+                          });
+
+                  }
+          }
+
+            count=-1;
+          for(var k=0;k<4;k++)//画out第一行
+         {
+              count++;
+                t_svg.append('text')
+                    .attr('x',70)
+                    .attr('y',150)
+                    .attr('dy',12)
+                    .attr('fill','black')
+                    .text(1);
+              var left=430+k*110;
+               for(var j=0;j<48;j++)
+                 {
+                     var x=left+2*j;
+                     t_svg.append('rect')
+                        .attr('x',x)
+                         .attr('y',150)
+                         .attr('height',10)
+                         .attr('width',2)
+                          .attr('class',function(){
+                             var s='rec';
+                             var k=labelNum*j;
+                             s+=' time'+k;
+                             return s;
+                          })
+                         .attr('fill',function(){
+                            
+                              var numL=flowOut[count][j];
+                             
+                               if(numL<10)
+                               {
+                                    return compute(numL/10.0);
+                               }
+                               else if(numL<100){
+                                    return compute2(numL/100.0);
+                               }
+                               else{
+                                    return compute3(numL/max);
+                               }
+                         })
+                         .on('mouseover.foo',function(){
+                                    tooltip.html('hi'+(i*10+j))
+                                                .style("left", (d3.event.pageX-10) + "px")  
+                                                .style("top", (d3.event.pageY- 40) + "px")  
+                                                .style("opacity",0.7);  
+                         })
+                         .on("mouseout",function(d){  
+                                   tooltip.style("opacity",0.0);  
+                          });
+
+                  }
+          }
+
+          for(var i=0;i<3;i++)//画out中间三行
+          {
+              var y=170+i*20;
+               t_svg.append('text')
+                    .attr('x',70)
+                    .attr('y',y)
+                    .attr('dy',10)
+                    .attr('fill','black')
+                    .text(i+2);
+              for(var k=0;k<7;k++)
+              {
+                        count++;
+                         var left=100+k*110;
+                         for(var j=0;j<48;j++)
+                       {
+                           var x=left+2*j;
+                           t_svg.append('rect')
+                              .attr('x',x)
+                               .attr('y',y)
+                               .attr('height',10)
+                               .attr('width',2)
+                                .attr('class',function(){
+                                   var s='rec';
+                                   var k=labelNum*j;
+                                   s+=' time'+k;
+                                   return s;
+                                })
+                               .attr('fill',function(){
+                                    var numL=flowOut[count][j];
+                                   
+                                     if(numL<10)
+                                     {
+                                          return compute(numL/10.0);
+                                     }
+                                     else if(numL<100){
+                                          return compute2(numL/100.0);
+                                     }
+                                     else{
+                                          return compute3(numL/max);
+                                     }
+                               })
+                               .on('mouseover.foo',function(){
+                                          tooltip.html('hi'+(i*10+j))
+                                                      .style("left", (d3.event.pageX-10) + "px")  
+                                                      .style("top", (d3.event.pageY- 40) + "px")  
+                                                      .style("opacity",0.7);  
+                               })
+                               .on("mouseout",function(d){  
+                                         tooltip.style("opacity",0.0);  
+                                });
+
+                       }
+              }
+            
+         }
+
+         for(var k=0;k<4;k++)//画out最后一行
+         {
+              count++;
+               t_svg.append('text')
+                    .attr('x',70)
+                    .attr('y',230)
+                    .attr('dy',12)
+                    .attr('fill','black')
+                    .text(5);
+              var left=100+k*110;
+               for(var j=0;j<48;j++)
+                 {
+                     var x=left+2*j;
+                     t_svg.append('rect')
+                        .attr('x',x)
+                         .attr('y',230)
+                         .attr('height',10)
+                         .attr('width',2)
+                          .attr('class',function(){
+                             var s='rec';
+                             var k=labelNum*j;
+                             s+=' time'+k;
+                             return s;
+                          })
+                         .attr('fill',function(){
+                            
+                              var numL=flowOut[count][j];
+                             
+                               if(numL<10)
+                               {
+                                    return compute(numL/10.0);
+                               }
+                               else if(numL<100){
+                                    return compute2(numL/100.0);
+                               }
+                               else{
+                                    return compute3(numL/max);
+                               }
+                         })
+                         .on('mouseover.foo',function(){
+                                    tooltip.html('hi'+(i*10+j))
+                                                .style("left", (d3.event.pageX-10) + "px")  
+                                                .style("top", (d3.event.pageY- 40) + "px")  
+                                                .style("opacity",0.7);  
+                         })
+                         .on("mouseout",function(d){  
+                                   tooltip.style("opacity",0.0);  
+                          });
+
+                  }
+          }   
+          $('.rec').css('cursor', 'pointer');
+     }
+    
+     $(function (){
+       d3.json("bundling_data/range/range2.json",function(data){
+          allData=data;
+          allData.forEach(function(range,i){
+              if(range.avg_day>maxDayNum){
+                  maxDayNum=range.avg_day;
+              }
+              //得出maxTickNum=441
+              // var inL=range.flow_in;  
+              // var outL=range.flow_out;
+              // for(var j=0;j<30;j++)
+              // {
+              //      for(var m=0;m<48;m++)
+              //      {
+              //         if(inL[j][m]>maxTickNum){
+              //                 maxTickNum=inL[j][m];
+              //         }
+              //         if(outL[j][m]>maxTickNum){
+              //                 maxTickNum=outL[j][m];
+              //         }
+              //      }
+              // }
+          });
+        linear= d3.scaleLinear()//新版本的写法 scale.linear()
+            .domain([0, maxDayNum])
+            .range([0, 500]); 
+        allData.sort(function(d1,d2){
+            return d2.avg_day-d1.avg_day;
+        });
+        for(var i=0;i<10;i++)
+        {
+             var divL = d3.select("body")  
+                                      .append("div")  
+                                      .attr("id","label"+i);  
+              var s='label'+i;
+              addRect2(divL,s,allData[i].label);
+        }
+       });
+    });
+
+    </script>
+</html>
+</body>
