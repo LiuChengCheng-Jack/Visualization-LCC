@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html>
+<head>
+             <meta charset="utf-8">
+	<title>Game1</title>
+	<script type="text/javascript" src="js/jquery.js"></script>
+	<script type="text/javascript" src="js/d3.v4.js"></script>
+	<script type="text/javascript" src="js/game.js"></script>
+	<style type="text/css">
+	     *{
+	     	margin: 0;
+	     	padding: 0;
+	     }
+	     html,body{
+	     	height: 100%;
+	     	width: 100%;
+	     	margin: 0 auto;
+	     	text-align: center;
+	     }
+	     button{
+	          background-color: #FEFDCA;
+          	          width:8.5%;
+          	          height: 70px;
+                       margin: 0;
+                       font-size: 30px;
+                       font-weight: bold;
+	     }
+	     #load{
+	     	opacity: 0.95;
+	     	position: absolute;
+	     	top:31%;
+	     	left:40%;
+	     	background-color: #3FC1C9;
+	     	border-radius: 5px;
+	     	border: 2px solid #364F6B;
+	     	font-size: 40px;
+	     	display: none;
+	     }
+	     #timeDiv{
+	     	margin: 20px 0;
+	     	font-size: 20px;
+	     }
+                 #time{
+                 	display: inline-block;
+                 	margin: 0 auto;
+                 	width:26%;
+                 	border: 1px solid black;
+                 	margin-left: 15%;
+                 }
+	     #update{
+                         background-color: #A5DEE5;
+                         border-radius: 2px;
+                         border: 1px solid black;
+                         height:30px;
+                         margin:20px 45%;
+                         line-height: 30px;
+                         cursor:pointer;
+                         font-size: 18px;
+	     }
+	     #stop{
+	     	margin: 0 3%;
+	     	font-size: 2%;
+	     	width: 8%;
+	     	height: 5%;
+	     	background-color: #E0F9B5;
+	     	border-radius: 2px;
+	     }
+	     .record{
+	     	position: absolute;
+	     	width:12%;
+	     	right: 15%;
+	     	font-weight: bold;
+	     }
+	      #best_score{
+	     	top:11%;
+	     }
+	     #avg_score{
+	     	top:21%;
+	     }
+	     #history_score{
+	     	top:31%;
+	     }
+	     #bestTime,#avgTime,#historyTime{
+	     	font-weight: normal;
+	     	margin-top:2%;
+	     	padding:2px 0;
+	     	border: 1px solid black;
+	     }
+	</style>
+</head>
+<body>
+         <div id="load"></div>
+        <div id="timeDiv"><div id="time">00:00:000</div><button id="stop">Stop</button></div>
+        <div class="button">
+	         <div class="row">
+	               <button id="lab1" class="number">1</button><button  id="lab2" class="number">2</button><button  id="lab3" class="number">3</button><button  id="lab4" class="number">4</button><button  id="lab5" class="number">5</button>
+	        </div>
+	        <div class="row">
+	               <button id="lab6" class="number">6</button><button  id="lab7" class="number">7</button><button  id="lab8" class="number">8</button><button  id="lab9" class="number">9</button><button  id="lab10" class="number">10</button>
+	        </div>
+	         <div class="row">
+	               <button id="lab11" class="number">11</button><button  id="lab12" class="number">12</button><button  id="lab13" class="number">13</button><button  id="lab14" class="number">14</button><button  id="lab15" class="number">15</button>
+	        </div>
+	        <div class="row">
+	               <button id="lab16" class="number">16</button><button  id="lab17" class="number">17</button><button  id="lab18" class="number">18</button><button  id="lab19" class="number">19</button><button  id="lab20" class="number">20</button>
+	        </div>
+	         <div class="row">
+	               <button id="lab21" class="number">21</button><button  id="lab22" class="number">22</button><button  id="lab23" class="number">23</button><button  id="lab24" class="number">24</button><button  id="lab25" class="number">25</button>
+	        </div>
+        </div>
+        <div id="update">Valide</div>
+
+         <div  id="best_score" class="record">BestTime<div id='bestTime'>00:00:000</div></div>
+        <div  id="avg_score" class="record">Avg_Time<div id='avgTime'>00:00:000</div></div>
+        <div id="history_score" class="record">History<div id='historyTime'>00:00:000<br/>00:00:000<br/>00:00:000<br/>00:00:000<br/>00:00:000<br/>00:00:000<br/>00:00:000<br/>00:00:000<br/>00:00:000<br/>00:00:000</div></div>
+</body>
+</html>
